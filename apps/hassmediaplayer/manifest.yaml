@@ -1,0 +1,8 @@
+---
+id: hass-mediaplayer
+name: HASS MediaPlayer
+summary: Now Playing
+desc: Displays a new cocktail every hour, on the hour. Cheers to my mom for the color scheme, idea, AND name!
+author: Nick Penree
+fileName: hass_mediaplayer.star
+packageName: hass_mediaplayer

@@ -1,0 +1,8 @@
+---
+id: teslamate
+name: TeslaMate
+summary: Shows charge/name/range
+desc: Shows your Teslas current Name, Charge in Mi/KM and battery %. Also shows if its charging or not.
+author: acvigue
+fileName: teslamate.star
+packageName: teslamate

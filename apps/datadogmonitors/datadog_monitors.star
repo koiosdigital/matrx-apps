@@ -44,7 +44,7 @@ def main(config):
             headers = {"DD-API-KEY": DD_API_KEY, "DD-APPLICATION-KEY": DD_APP_KEY, "Accept": "application/json"},
         ).json()
 
-        cache.set(CACHE_KEY, json.encode(data), ttl_seconds = 240)
+        cache.set(CACHE_KEY, json.encode(data), ttl_seconds = 30)
     else:
         data = {"monitors": []}
 
@@ -114,6 +114,8 @@ def main(config):
                     render.Sequence(children = children),
                 ],
             )
+        else:
+            print("skip_execution")
 
     return render.Root(child = child)
 
