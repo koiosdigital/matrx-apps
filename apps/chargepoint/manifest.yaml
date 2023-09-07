@@ -1,0 +1,8 @@
+---
+id: chargepoint
+name: ChargePoint
+summary: ChargePoint charger status
+desc: Shows the current status of configured ChargePoint charging stations.
+author: acvigue
+fileName: chargepoint.star
+packageName: chargepoint
