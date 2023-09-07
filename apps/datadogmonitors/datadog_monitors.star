@@ -44,7 +44,8 @@ def main(config):
             headers = {"DD-API-KEY": DD_API_KEY, "DD-APPLICATION-KEY": DD_APP_KEY, "Accept": "application/json"},
         ).json()
 
-        cache.set(CACHE_KEY, json.encode(data), ttl_seconds = 30)
+        # TODO: Determine if this cache call can be converted to the new HTTP cache.
+        cache.set(CACHE_KEY, json.encode(data), ttl_seconds = 240)
     else:
         data = {"monitors": []}
 

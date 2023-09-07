@@ -139,7 +139,7 @@ def main(config):
         OUTLOOK_ACCESS_TOKEN = cache.get(outlook_refresh_token)
 
     if not OUTLOOK_ACCESS_TOKEN:
-        refresh_body = "refresh_token=" + outlook_refresh_token + "&redirect_uri=http://127.0.0.1:8080/oauth-callback" + "&client_id=" + client_id + "&client_secret=" + client_secret + "&grant_type=refresh_token" + "&scope=Calendars.read"
+        refresh_body = "refresh_token=" + outlook_refresh_token + "&client_id=" + client_id + "&client_secret=" + client_secret + "&grant_type=refresh_token" + "&scope=Calendars.read"
 
         # CURL can be handy for debug ops from the Linux command line
 
@@ -164,6 +164,8 @@ def main(config):
 
         # Grab new Oauthtoken from the Google Token service, format for Data Aggregation API call.
         OUTLOOK_ACCESS_TOKEN = "Bearer {}".format(refresh.json()["access_token"])
+
+        # TODO: Determine if this cache call can be converted to the new HTTP cache.
         cache.set(outlook_refresh_token, OUTLOOK_ACCESS_TOKEN, ttl_seconds = int(refresh.json()["expires_in"] - 30))
 
         # HM, is this ELSE path ever taken or leftover prior to inserting the else condition of the refresh token check?
@@ -257,6 +259,7 @@ def oauth_handler(params):
     token_params = res.json()
     refresh_token = token_params["refresh_token"]
 
+    # TODO: Determine if this cache call can be converted to the new HTTP cache.
     cache.set(refresh_token, "Bearer " + token_params["access_token"], ttl_seconds = int(token_params["expires_in"] - 30))
 
     return refresh_token
