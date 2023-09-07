@@ -42,7 +42,7 @@ def main(config):
     data = res.json()
 
     ports = data["portsInfo"]["ports"]
-    name = ' '.join(data["name"])
+    name = config.get("name") or ' '.join(data["name"])
 
     takenPorts = 0
     for port in ports:
