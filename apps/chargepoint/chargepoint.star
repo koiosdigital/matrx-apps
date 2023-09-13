@@ -51,7 +51,7 @@ def main(config):
     
     portCount = len(ports)
 
-    if data["stationStatus"] != "available":
+    if data["stationStatus"] != "available" and data["stationStatus"] != "in_use":
         image = BOLT
         text = "Station Down  "
         color = "#ff2222"
