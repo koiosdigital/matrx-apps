@@ -30,11 +30,19 @@ def errorView(message):
         color="#fff",
     )
 
+def albumArtOnly(config, image):
+    width = config.get("display_width", 64)
+    height = config.get("display_height", 32)
+    return render.Image(src=image, height=int(height), width=int(width))
+
 def main(config):
     currently_playing = get_currently_playing(config)
 
     track_title = currently_playing["item"]["name"]
     track_image = http.get(currently_playing["item"]["album"]["images"][0]["url"], ttl_seconds=86400).body()
+
+    if config.get("album_art_only", False):
+        return render.Root(child=albumArtOnly(config, track_image))
 
     artist = currently_playing["item"]["artists"][0]["name"]
     album = currently_playing["item"]["album"]["name"]
@@ -147,6 +155,13 @@ def get_schema():
                 scopes = [
                     "user-read-currently-playing",
                 ],
+            ),
+            schema.Toggle(
+                id = "album_art_only",
+                icon = "eye",
+                name = "Album Art Only",
+                desc = "If enabled, only the album art will be displayed.",
+                default = False,
             ),
         ],
     )
