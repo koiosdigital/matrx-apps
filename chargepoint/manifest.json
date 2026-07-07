@@ -1,0 +1,10 @@
+{
+  "id": "chargepoint",
+  "name": "ChargePoint",
+  "summary": "ChargePoint charger status",
+  "desc": "Shows the current status of a configured ChargePoint charging station.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": ["chargepoint-api.koiosdigital.workers.dev"],
+  "schemaVersion": "1"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "maze",
+  "name": "Maze",
+  "summary": "Procedural maze",
+  "desc": "Generates a random maze from a seed. Same seed, same maze, same bytes — the determinism reference app (handoff §11).",
+  "author": "matrx",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1"
+}

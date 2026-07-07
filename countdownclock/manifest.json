@@ -1,0 +1,14 @@
+{
+  "id": "countdown-clock",
+  "name": "Countdown Clock",
+  "summary": "Countdown to an event",
+  "desc": "Display the days, hours, and minutes remaining to a specified event.",
+  "author": "CubsAaron",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/countdownclock/countdown_clock.star",
+    "notes": "Hand-ported Starlark → TS as a corpus-migration reference."
+  }
+}

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: matrx check (every app)
+        run: |
+          set -e
+          for d in */manifest.json; do
+            app=$(dirname "$d")
+            echo "::group::matrx check $app"
+            npx matrx check "$app"
+            echo "::endgroup::"
+          done
+
+  publish:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Bundle every app
+        run: |
+          set -e
+          for d in */manifest.json; do
+            app=$(dirname "$d")
+            npx matrx bundle "$app" -o "dist/$app"
+          done
+      - name: Upload bundles to R2 (registry keys apps/<id>@<version>/)
+        run: |
+          set -e
+          for d in */manifest.json; do
+            app=$(dirname "$d")
+            id=$(node -p "require('./dist/$app/manifest.json').id")
+            hash=$(node -p "require('./dist/$app/manifest.json').bundleHash.slice(0, 12)")
+            for version in latest "$hash"; do
+              echo "::group::upload $id@$version"
+              npx wrangler r2 object put "kd-matrx-apps/apps/$id@$version/bundle.js" \
+                --file "dist/$app/bundle.js" --content-type application/javascript --remote
+              npx wrangler r2 object put "kd-matrx-apps/apps/$id@$version/manifest.json" \
+                --file "dist/$app/manifest.json" --content-type application/json --remote
+              echo "::endgroup::"
+            done
+          done

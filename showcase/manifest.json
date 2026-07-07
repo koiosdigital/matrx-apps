@@ -1,0 +1,10 @@
+{
+  "id": "showcase",
+  "name": "Showcase",
+  "summary": "Widget showcase",
+  "desc": "Exercises PieChart, Circle, Transformation (rotation), Plot and Marquee in one animated screen.",
+  "author": "matrx",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1"
+}
