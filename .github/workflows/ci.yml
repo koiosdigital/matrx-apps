@@ -32,8 +32,11 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # R2 S3-compatible credentials (R2 API token) + account for the endpoint.
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -58,10 +61,12 @@ jobs:
             hash=$(node -p "require('./dist/$app/manifest.json').bundleHash.slice(0, 12)")
             for version in latest "$hash"; do
               echo "::group::upload $id@$version"
-              pnpm exec wrangler r2 object put "kd-matrx-apps/apps/$id@$version/bundle.js" \
-                --file "dist/$app/bundle.js" --content-type application/javascript --remote
-              pnpm exec wrangler r2 object put "kd-matrx-apps/apps/$id@$version/manifest.json" \
-                --file "dist/$app/manifest.json" --content-type application/json --remote
+              aws s3 cp "dist/$app/bundle.js" \
+                "s3://kd-matrx-apps/apps/$id@$version/bundle.js" \
+                --endpoint-url "$R2_ENDPOINT" --content-type application/javascript
+              aws s3 cp "dist/$app/manifest.json" \
+                "s3://kd-matrx-apps/apps/$id@$version/manifest.json" \
+                --endpoint-url "$R2_ENDPOINT" --content-type application/json
               echo "::endgroup::"
             done
           done

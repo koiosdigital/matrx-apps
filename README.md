@@ -29,8 +29,9 @@ apps/<id>@latest/bundle.js        apps/<id>@latest/manifest.json
 apps/<id>@<bundleHash12>/…        (content-addressed, for APP_VERSIONS pinning)
 ```
 
-The publish job needs two repo secrets: `CLOUDFLARE_API_TOKEN` (R2 write on
-the bucket) and `CLOUDFLARE_ACCOUNT_ID`.
+The publish job uploads via the R2 S3 API and needs three repo secrets:
+`R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` (from an R2 API token with write
+on the bucket) and `CLOUDFLARE_ACCOUNT_ID` (forms the S3 endpoint URL).
 
 ## App layout
 
