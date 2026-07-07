@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "description": "App corpus for the MATRX renderer — each top-level directory is one app",
+  "packageManager": "pnpm@10.26.2",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "check": "for d in */manifest.json; do npx matrx check \"$(dirname \"$d\")\" || exit 1; done",
-    "bundle": "for d in */manifest.json; do app=$(dirname \"$d\"); npx matrx bundle \"$app\" -o \"dist/$app\" || exit 1; done"
+    "check": "for d in */manifest.json; do pnpm exec matrx check \"$(dirname \"$d\")\" || exit 1; done",
+    "bundle": "for d in */manifest.json; do app=$(dirname \"$d\"); pnpm exec matrx bundle \"$app\" -o \"dist/$app\" || exit 1; done"
   },
   "dependencies": {
     "@koiosdigital/matrx-sdk": "^0.1.3",
