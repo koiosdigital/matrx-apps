@@ -13,13 +13,10 @@
  * Differences from the Starlark original, forced by the SDK surface:
  *  - No `secret.encrypt` in the SDK (only `secret.decrypt`); the handler
  *    returns the auth string as-is and the host stores it (see chargepoint).
- *  - The `http` wrapper is text-only, so album art is fetched with raw
- *    `fetch()` + arrayBuffer() and handed to Image as bytes. The 24h TTL is
- *    set explicitly via the `x-matrx-ttl` header the host cache consumes.
- *  - Spotify serves album art as JPEG, which matrx-render can't decode (PNG/
- *    GIF/WebP only — pixlet's decoder did JPEG). Art is routed through the
- *    images.weserv.nl proxy, which transcodes to PNG and downscales to the
- *    panel, so the isolate only egresses to that one host.
+ *  - The `http` wrapper is text-only, so album art (Spotify JPEG) is fetched
+ *    with raw `fetch()` + arrayBuffer() and handed to Image as bytes. The 24h
+ *    TTL is set explicitly via the `x-matrx-ttl` header the host cache
+ *    consumes.
  *  - `return []` (pixlet "skip this render") becomes `return null`: the
  *    runtime emits zero frames, the device plane turns that into HTTP 204,
  *    and the firmware skips the slot (keeping its schedule) rather than
@@ -259,16 +256,9 @@ async function getCurrentlyPlaying(config: Config): Promise<NowPlaying | null> {
   return res.json() as NowPlaying;
 }
 
-/**
- * Fetch remote album art as raw bytes for Image (24h host-cached).
- *
- * Spotify art is JPEG, which the renderer can't decode, so it's proxied
- * through images.weserv.nl, transcoded to PNG and capped at 128px (the
- * largest panel dimension) to keep the payload small.
- */
+/** Fetch remote album art (Spotify JPEG) as raw bytes for Image (24h host-cached). */
 async function fetchImage(url: string): Promise<Uint8Array> {
-  const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=png&w=128&h=128`;
-  const res = await fetch(proxied, { headers: { "x-matrx-ttl": "86400" } });
+  const res = await fetch(url, { headers: { "x-matrx-ttl": "86400" } });
   return new Uint8Array(await res.arrayBuffer());
 }
 
