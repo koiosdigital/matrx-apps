@@ -65,18 +65,53 @@ function pad(left: number, top: number, right: number, bottom: number): Insets {
   return { left, top, right, bottom };
 }
 
+/**
+ * Cache window for a minted access token. Kept under the API's access-token
+ * lifetime (1h) so the host TTL cache serves most renders from one refresh
+ * exchange rather than refreshing on every render.
+ */
+const ACCESS_TOKEN_CACHE_SECONDS = 50 * 60;
+
+/**
+ * Exchange the stored refresh token for a fresh access token.
+ *
+ * The MATRX config store is write-once and read-only, so we persist the
+ * long-lived, non-rotating refresh token as `auth` and derive a short-lived
+ * access token on demand here. Returns null when the session is gone (refresh
+ * token revoked/expired) — the caller should fall back to the logged-out state.
+ */
+async function getAccessToken(config: Config): Promise<string | null> {
+  const refreshToken = config.get("auth") ?? "";
+  if (!refreshToken) return null;
+
+  const res = await http.post(`${API_BASE}/api/oauth/token`, {
+    headers: { Accept: "application/json" },
+    formBody: { grant_type: "refresh_token", refresh_token: refreshToken },
+    ttlSeconds: ACCESS_TOKEN_CACHE_SECONDS,
+  });
+  if (res.status !== 200) {
+    // 400 invalid_grant => session ended; anything else is transient.
+    return null;
+  }
+  const { access_token } = res.json() as { access_token?: string };
+  return access_token ?? null;
+}
+
 async function getStationData(config: Config): Promise<StationData> {
   const station = config.get("station") ?? "";
-  const auth = config.get("auth") ?? "";
 
   let data = JSON.parse(EXAMPLE_DATA) as StationData;
-  if (station && auth) {
+  if (station) {
+    const accessToken = await getAccessToken(config);
+    // No token => not connected (or session expired); show the placeholder.
+    if (!accessToken) return data;
+
     const stationJson = JSON.parse(station) as { value?: string };
     const stationId = stationJson.value;
 
     const url = `${API_BASE}/api/v1/stations/${stationId}`;
     const res = await http.get(url, {
-      headers: { Authorization: `Bearer ${auth}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
       ttlSeconds: 120,
     });
     if (res.status !== 200) {
@@ -315,12 +350,12 @@ export async function locationBasedHandler(
   location: string,
   config: Config,
 ): Promise<SchemaOption[]> {
-  const auth = config.get("auth");
-  if (!auth) return [];
+  const accessToken = await getAccessToken(config);
+  if (!accessToken) return [];
 
   const loc = JSON.parse(location) as { lat: string | number; lng: string | number };
   const res = await http.post(`${API_BASE}/api/v1/stations/search`, {
-    headers: { Authorization: `Bearer ${auth}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
     jsonBody: { lat: Number(loc.lat), lng: Number(loc.lng), radius: 5 },
     ttlSeconds: 86400,
   });
@@ -355,7 +390,15 @@ export function generatedHandler(auth: string): SchemaField[] {
   ];
 }
 
-/** oauth2 handler: exchanges the authorization params for an access token. */
+/**
+ * oauth2 handler: runs the authorization_code exchange and persists the
+ * REFRESH token as the connection's stored value (`auth`).
+ *
+ * The host stores whatever this returns once, and config is read-only
+ * thereafter — so we keep the durable, non-rotating refresh token (not the
+ * 1-hour access token). Access tokens are minted on demand from it via
+ * getAccessToken().
+ */
 export async function oauthHandler(params: string): Promise<string> {
   const p = JSON.parse(params) as Record<string, string>;
   const res = await http.post(`${API_BASE}/api/oauth/token`, {
@@ -367,8 +410,13 @@ export async function oauthHandler(params: string): Promise<string> {
       `token request failed with status code: ${res.status} - ${res.body()}`,
     );
   }
-  const tokenParams = res.json() as { access_token: string };
-  return tokenParams.access_token;
+  const tokenParams = res.json() as {
+    access_token: string;
+    refresh_token?: string;
+  };
+  // Prefer the refresh token; fall back to the access token if the API ever
+  // omits it, so the connection still works (degraded to no auto-refresh).
+  return tokenParams.refresh_token ?? tokenParams.access_token;
 }
 
 export function getSchema(): Schema {

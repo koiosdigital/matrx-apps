@@ -52,21 +52,18 @@ jobs:
             app=$(dirname "$d")
             pnpm exec matrx bundle "$app" -o "dist/$app"
           done
-      - name: Upload bundles to R2 (registry keys apps/<id>@<version>/)
+      - name: Upload bundles to R2 (unversioned — replace in place at apps/<id>/)
         run: |
           set -e
           for d in */manifest.json; do
             app=$(dirname "$d")
             id=$(node -p "require('./dist/$app/manifest.json').id")
-            hash=$(node -p "require('./dist/$app/manifest.json').bundleHash.slice(0, 12)")
-            for version in latest "$hash"; do
-              echo "::group::upload $id@$version"
-              aws s3 cp "dist/$app/bundle.js" \
-                "s3://kd-matrx-apps/apps/$id@$version/bundle.js" \
-                --endpoint-url "$R2_ENDPOINT" --content-type application/javascript
-              aws s3 cp "dist/$app/manifest.json" \
-                "s3://kd-matrx-apps/apps/$id@$version/manifest.json" \
-                --endpoint-url "$R2_ENDPOINT" --content-type application/json
-              echo "::endgroup::"
-            done
+            echo "::group::upload $id"
+            aws s3 cp "dist/$app/bundle.js" \
+              "s3://kd-matrx-apps/apps/$id/bundle.js" \
+              --endpoint-url "$R2_ENDPOINT" --content-type application/javascript
+            aws s3 cp "dist/$app/manifest.json" \
+              "s3://kd-matrx-apps/apps/$id/manifest.json" \
+              --endpoint-url "$R2_ENDPOINT" --content-type application/json
+            echo "::endgroup::"
           done
