@@ -34,7 +34,7 @@ import BOLT from "./bolt.png";
 import BOLT_GREY from "./bolt_grey.png";
 import BOLT_ANIMATED from "./bolt_animated.gif";
 
-const API_BASE = "https://chargepoint-api.koiosdigital.workers.dev";
+const API_BASE = "https://chargepoint-api.koiosdigital.net";
 
 const EXAMPLE_DATA = `{"stationStatus": "available", "lat": 12.22, "name": "Log In Below", "deviceId": 1234, "address": "1234 Anytown", "ports": {"ports": [{"level": "L2", "connectorList": [{"status": "available", "statusV2": "available", "displayPlugType": "J1772", "plugType": "J1772"}], "outletNumber": 1.0, "distanceRange": {"unit": "Mile", "max": 19.799999999999997}, "statusV2": "available", "capabilities": ["WAITLIST_MODE1"], "parkingAccessibility": "NONE", "powerRange": {"max": "6.6", "unit": "kW"}, "status": "available", "displayLevel": "AC"}, {"statusV2": "available", "displayLevel": "AC", "connectorList": [{"status": "available", "statusV2": "available", "displayPlugType": "J1772", "plugType": "J1772"}], "distanceRange": {"unit": "Mile", "max": 19.799999999999997}, "powerRange": {"unit": "kW", "max": "6.6"}, "status": "available", "level": "L2", "capabilities": ["WAITLIST_MODE1"], "parkingAccessibility": "NONE", "outletNumber": 2.0}], "portCount": 2.0, "dc": false}, "lng": 12.22, "description": "Description", "network": {"displayName": "ChargePoint Network", "logoUrl": "https://mc.chargepoint.com/images/network/2/ic_network_chargepoint.png"}, "openCloseStatus": "open", "hostName": "Charger Host"}`;
 
