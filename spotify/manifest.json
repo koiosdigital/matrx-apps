@@ -1,0 +1,14 @@
+{
+  "id": "spotify",
+  "name": "Spotify",
+  "summary": "Now playing on Spotify",
+  "desc": "Shows the track currently playing on your connected Spotify account, with album art.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "accounts.spotify.com",
+    "api.spotify.com",
+    "images.weserv.nl"
+  ],
+  "schemaVersion": "1"
+}
