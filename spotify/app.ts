@@ -20,8 +20,10 @@
  *    GIF/WebP only — pixlet's decoder did JPEG). Art is routed through the
  *    images.weserv.nl proxy, which transcodes to PNG and downscales to the
  *    panel, so the isolate only egresses to that one host.
- *  - `return []` (pixlet "skip this render") becomes an empty Root — a blank
- *    frame — which is the closest type-safe equivalent.
+ *  - `return []` (pixlet "skip this render") becomes `return null`: the
+ *    runtime emits zero frames, the device plane turns that into HTTP 204,
+ *    and the firmware skips the slot (keeping its schedule) rather than
+ *    showing a black frame.
  */
 
 import {
@@ -270,20 +272,20 @@ async function fetchImage(url: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
-export default async function render(config: Config): Promise<RootSpec> {
+export default async function render(config: Config): Promise<RootSpec | null> {
   const currentlyPlaying = await getCurrentlyPlaying(config);
 
-  // Nothing playing (204) — skip display (pixlet returned []).
-  if (currentlyPlaying === null) return Root({ child: Box({}) });
+  // Nothing playing — skip this render (null → 0 frames → 204 → device skips).
+  if (currentlyPlaying === null) return null;
 
   // API error — show error message.
   if (currentlyPlaying.error) {
     return Root({ child: errorView(currentlyPlaying.error, config.width()) });
   }
 
-  // No track item — skip display.
+  // No track item — skip this render.
   const item = currentlyPlaying.item;
-  if (!item) return Root({ child: Box({}) });
+  if (!item) return null;
 
   const trackTitle = item.name;
   const trackImage = await fetchImage(item.album.images[0].url);
