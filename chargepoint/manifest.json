@@ -5,6 +5,8 @@
   "desc": "Shows the current status of a configured ChargePoint charging station.",
   "author": "Koios Digital",
   "entry": "app.ts",
-  "allowedHosts": ["chargepoint-api.koiosdigital.workers.dev"],
+  "allowedHosts": [
+    "chargepoint-api.koiosdigital.net"
+  ],
   "schemaVersion": "1"
 }
