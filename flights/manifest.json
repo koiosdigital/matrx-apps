@@ -1,0 +1,14 @@
+{
+  "id": "flights",
+  "name": "Flights",
+  "summary": "Nearby flights overhead",
+  "desc": "Shows a live flight passing near your location — callsign, route, aircraft, and cycling timing/telemetry/status subscreens. Can also track one specific flight by number.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "flights-api.koiosdigital.net",
+    "www.flightaware.com",
+    "flightaware.com"
+  ],
+  "schemaVersion": "1"
+}
