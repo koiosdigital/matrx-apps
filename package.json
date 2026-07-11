@@ -11,11 +11,11 @@
     "bundle": "for d in */manifest.json; do app=$(dirname \"$d\"); pnpm exec matrx bundle \"$app\" -o \"dist/$app\" || exit 1; done"
   },
   "dependencies": {
-    "@koiosdigital/matrx-sdk": "^0.1.6",
+    "@koiosdigital/matrx-sdk": "^0.1.8",
     "qrcode-generator": "^2.0.4"
   },
   "devDependencies": {
-    "@koiosdigital/matrx-cli": "^0.1.6",
+    "@koiosdigital/matrx-cli": "^0.1.8",
     "@types/node": "^26.1.0",
     "@types/qrcode-generator": "^1.0.6",
     "typescript": "^5.8.0"
