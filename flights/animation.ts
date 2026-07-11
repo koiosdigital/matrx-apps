@@ -1,8 +1,18 @@
 /**
- * Animation helpers, ported from the Starlark `#MARK: Animation helpers`
- * section. `animation.Transformation(...)` maps to the SDK `Transformation`
- * widget builder; `animation.Keyframe/Translate` come from the SDK `animation`
- * namespace. Keyword args become options objects; snake_case → camelCase.
+ * Animation helpers.
+ *
+ * Loop correctness: the device loops the rendered animation, so frame T-1
+ * must land exactly on the end of a full cycle of every cycling block — then
+ * frame 0 follows seamlessly. The renderer's `Sequence(duration)` replays its
+ * children modulo their natural length, so each block's base cycle must
+ * divide the total duration exactly.
+ *
+ * The old port used `waitForChild` holds, which stretch with marquee text
+ * width — that made the real cycle length differ from the static estimate and
+ * the loop cut mid-cycle. Instead we compute every marquee's frame count here
+ * (mirroring renderer formulas; both fonts used in marquees are 6px
+ * monospace), give holds explicit durations, and pad holds so all cycles are
+ * commensurate (see `syncCycles`).
  */
 
 import {
@@ -15,28 +25,134 @@ import {
   type WidgetSpec,
 } from "@koiosdigital/matrx-sdk";
 
-/** Estimate the frame count for one cycle of nChildren screens. */
-export function cycleFrames(
-  nChildren: number,
-  hold: number,
-  transition: number,
-  style = "crossfade",
-): number {
-  if (nChildren <= 1) return hold;
-  if (style === "crossfade") return nChildren * (hold + 2 * transition);
-  if (style === "slide_up" || style === "slide_down") {
-    return nChildren * (hold + transition);
-  }
-  return nChildren * hold;
+/** Advance width of Dina_r400-6 and 6x10 — both monospace, 6px per glyph. */
+const MONO_ADVANCE = 6;
+
+/** Renderer marquee wrap-around gap (render/marquee LOOP_GAP). */
+const LOOP_GAP = 10;
+
+/**
+ * Pixel width of a single-line Text in a 6px monospace font. Glyphs missing
+ * from the font advance 0 in the renderer, so this is an upper bound — safe:
+ * holds sized from it are never shorter than the real scroll.
+ */
+export function textWidthPx(content: string): number {
+  return [...content].length * MONO_ADVANCE;
 }
 
-/** Target duration (max of all cycles) so every block loops to fill it. */
-export function syncDuration(cycleEstimates: number[]): number {
-  let result = 0;
-  for (const c of cycleEstimates) {
-    if (c > result) result = c;
+/** tb-8 per-glyph advance widths for codepoints 32..126, one digit each. */
+const TB8_ADVANCES =
+  "32455552335434255555555555234444655555555445565555554566565555453554555554454655555455465555255";
+/** Max advance in the whole font — safe upper bound for other codepoints. */
+const TB8_DEFAULT_ADVANCE = 6;
+
+/** Pixel width of a single-line Text in the proportional tb-8 font. */
+export function textWidthTb8(content: string): number {
+  let w = 0;
+  for (const ch of content) {
+    const cp = ch.codePointAt(0) ?? 0;
+    w += cp >= 32 && cp <= 126 ? TB8_ADVANCES.charCodeAt(cp - 32) - 48 : TB8_DEFAULT_ADVANCE;
   }
-  return result;
+  return w;
+}
+
+export interface MarqueeFrameOpts {
+  /** Child (text) pixel width along the scroll axis. */
+  cw: number;
+  /** Marquee viewport size along the scroll axis. */
+  size: number;
+  delay?: number;
+  endDelay?: number;
+  loop?: boolean;
+  offsetStart?: number;
+  offsetEnd?: number;
+}
+
+/** Mirror of the renderer's Marquee.frameCount() for horizontal scroll. */
+export function marqueeFrames({
+  cw,
+  size,
+  delay = 0,
+  endDelay = 0,
+  loop = false,
+  offsetStart = 0,
+  offsetEnd = 0,
+}: MarqueeFrameOpts): number {
+  if (cw <= size) return 1;
+  if (loop) return delay + cw + LOOP_GAP + 1 + endDelay;
+  const offstart = Math.max(offsetStart, -cw);
+  const offend = Math.max(offsetEnd, -cw);
+  if (offstart === offend) {
+    return cw + offstart + size - offend + delay + endDelay;
+  }
+  return cw + offstart + size - offend + 1 + delay + endDelay;
+}
+
+/** Frames one transition adds per subscreen for a given style. */
+export function transitionCost(style: string, transition: number): number {
+  if (style === "crossfade") return 2 * transition;
+  if (style === "slide_up" || style === "slide_down") return transition;
+  return 0;
+}
+
+/** One cycling block: per-child hold durations + resulting base cycle. */
+export interface CyclePlan {
+  holds: number[];
+  transCost: number;
+  base: number;
+}
+
+/**
+ * Plan a block's cycle: each hold shows its child for at least `holdFrames`,
+ * extended to the child's own frame count (marquee scroll) — the explicit
+ * replacement for `waitForChild`.
+ */
+export function planCycle(
+  childFrames: number[],
+  holdFrames: number,
+  transCost: number,
+): CyclePlan {
+  const holds = childFrames.map((f) => Math.max(holdFrames, f));
+  const base = holds.reduce((sum, h) => sum + h + transCost, 0);
+  return { holds, transCost, base };
+}
+
+function padCycle(plan: CyclePlan, pad: number): void {
+  const n = plan.holds.length;
+  const each = Math.trunc(pad / n);
+  const extra = pad % n;
+  for (let i = 0; i < n; i++) {
+    plan.holds[i] += each + (i < extra ? 1 : 0);
+  }
+  plan.base += pad;
+}
+
+/**
+ * Pick the total animation duration T and pad plan holds so every plan's
+ * base cycle divides T exactly, with T ≥ minFrames (so slower one-shot
+ * widgets — e.g. the looping carrier marquee, which freezes at its start
+ * position once done — fit inside one T and stay seam-safe).
+ *
+ * Two plans a ≥ b are made commensurate by running b exactly
+ * k = floor(a.base / b.base) times per a-cycle: b is padded up to
+ * ceil(a.base / k) and a up to k times that. Padding is small (< k + n
+ * frames) and spread across holds, so no LCM blow-up.
+ */
+export function syncCycles(plans: CyclePlan[], minFrames: number): number {
+  const min = Math.max(1, minFrames);
+  if (plans.length === 0) return min;
+  if (plans.length === 1) {
+    const b = plans[0].base;
+    return b * Math.max(1, Math.ceil(min / b));
+  }
+  let [a, b] = plans;
+  if (b.base > a.base) [a, b] = [b, a];
+  const k = Math.max(1, Math.trunc(a.base / b.base));
+  const bTarget = Math.ceil(a.base / k);
+  padCycle(b, bTarget - b.base);
+  padCycle(a, k * bTarget - a.base);
+  const cycle = a.base; // == k * b.base
+  return cycle * Math.max(1, Math.ceil(min / cycle));
 }
 
 function slideVectors(
@@ -44,13 +160,14 @@ function slideVectors(
   width: number,
   height: number,
 ): [number, number, number, number] {
+  void width;
   if (direction === "up") return [0, -height, 0, height];
   if (direction === "down") return [0, height, 0, -height];
   throw new Error(`Unknown direction: ${direction}`);
 }
 
 interface SlideOpts {
-  holdFrames?: number;
+  holds: number[];
   slideFrames?: number;
   direction?: string;
   width?: number;
@@ -61,13 +178,13 @@ interface SlideOpts {
 export function cycleSlide(
   children: WidgetSpec[],
   {
-    holdFrames = 60,
+    holds,
     slideFrames = 15,
     direction = "up",
     width = 64,
     height = 32,
     duration = 0,
-  }: SlideOpts = {},
+  }: SlideOpts,
 ): WidgetSpec {
   if (children.length === 0) return Box();
   if (children.length === 1) return children[0];
@@ -78,14 +195,15 @@ export function cycleSlide(
     const nextChild = children[(i + 1) % children.length];
     const [xOut, yOut, xIn, yIn] = slideVectors(direction, width, height);
 
+    // Fixed hold duration (≥ the child's marquee scroll) keeps the cycle
+    // length deterministic so `duration` can be an exact multiple of it.
     const hold = Transformation({
       child,
-      duration: holdFrames,
+      duration: holds[i],
       keyframes: [
         animation.Keyframe({ percentage: 0.0, transforms: [animation.Translate(0, 0)] }),
         animation.Keyframe({ percentage: 1.0, transforms: [animation.Translate(0, 0)] }),
       ],
-      waitForChild: true,
     });
     seqChildren.push(hold);
 
@@ -131,7 +249,7 @@ function normalizeColor(color: string): string {
 }
 
 interface CrossfadeOpts {
-  holdFrames?: number;
+  holds: number[];
   fadeFrames?: number;
   bgColor?: string;
   duration?: number;
@@ -139,15 +257,13 @@ interface CrossfadeOpts {
 
 export function cycleCrossfade(
   children: WidgetSpec[],
-  { holdFrames = 60, fadeFrames = 10, bgColor = "#000", duration = 0 }: CrossfadeOpts = {},
+  { holds, fadeFrames = 10, bgColor = "#000", duration = 0 }: CrossfadeOpts,
 ): WidgetSpec {
   if (children.length === 0) return Box();
   if (children.length === 1) return children[0];
 
   // Use Sequence (not Animation) so each child gets a relative frameIdx from
-  // 0 — that lets a Marquee scroll from the beginning each cycle. Hold phases
-  // use Transformation(waitForChild) so the hold extends until the Marquee
-  // finishes scrolling.
+  // 0 — that lets a Marquee scroll from the beginning each cycle.
   const seqChildren: WidgetSpec[] = [];
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
@@ -155,12 +271,11 @@ export function cycleCrossfade(
 
     const hold = Transformation({
       child,
-      duration: holdFrames,
+      duration: holds[i],
       keyframes: [
         animation.Keyframe({ percentage: 0.0, transforms: [animation.Translate(0, 0)] }),
         animation.Keyframe({ percentage: 1.0, transforms: [animation.Translate(0, 0)] }),
       ],
-      waitForChild: true,
     });
     seqChildren.push(hold);
 
@@ -172,7 +287,9 @@ export function cycleCrossfade(
         transitionFrames.push(Stack({ children: [child, Box({ color: overlay })] }));
       }
       for (let f = 0; f < fadeFrames; f++) {
-        const alpha = Math.trunc(((fadeFrames - f) * 255) / fadeFrames);
+        // Ends at alpha 0 so the fade's last frame matches the next hold's
+        // first frame exactly (loop seam included).
+        const alpha = Math.trunc(((fadeFrames - f - 1) * 255) / fadeFrames);
         const overlay = normalizeColor(bgColor) + toHexByte(alpha);
         transitionFrames.push(Stack({ children: [nextChild, Box({ color: overlay })] }));
       }
@@ -182,4 +299,28 @@ export function cycleCrossfade(
 
   if (duration > 0) return Sequence({ children: seqChildren, duration });
   return Sequence({ children: seqChildren });
+}
+
+/** Dispatch on the configured style; used by both cycling blocks. */
+export function buildCycle(
+  children: WidgetSpec[],
+  style: string,
+  plan: CyclePlan,
+  transition: number,
+  width: number,
+  height: number,
+  duration: number,
+): WidgetSpec {
+  if (style === "slide_up" || style === "slide_down") {
+    return cycleSlide(children, {
+      holds: plan.holds,
+      slideFrames: transition,
+      direction: style === "slide_up" ? "up" : "down",
+      width,
+      height,
+      duration,
+    });
+  }
+  const fade = style === "crossfade" ? transition : 0;
+  return cycleCrossfade(children, { holds: plan.holds, fadeFrames: fade, bgColor: "#000", duration });
 }

@@ -6,6 +6,17 @@
  * Column inside so content sits at the bottom; each text line is wrapped in a
  * Marquee(width) so a narrow Column isn't centered horizontally by the Box.
  *
+ * Builders return the widget together with its intrinsic frame count
+ * (computed via animation.ts mirrors of the renderer formulas) so the caller
+ * can size holds exactly and pick a total duration every cycle divides —
+ * that's what makes the device loop (last frame → frame 0) seamless.
+ *
+ * Scrolling marquees inside cycled blocks get `delay = transition cost`: the
+ * incoming transition paints the child at frame indexes 0..cost-1, so with
+ * that delay the text is still at its start position when the hold begins —
+ * transition end and hold start are pixel-identical, including at the loop
+ * seam.
+ *
  * Note: the Starlark `main_align="left"` / `"top"` (pixlet-lenient aliases for
  * the main-axis start) become `"start"` here, which the SDK's stricter
  * MainAlign type requires — same visual result.
@@ -23,37 +34,77 @@ import {
 } from "@koiosdigital/matrx-sdk";
 import { time } from "@koiosdigital/matrx-sdk/stdlib";
 
-import { cycleCrossfade, cycleFrames, cycleSlide, syncDuration } from "./animation";
+import {
+  buildCycle,
+  marqueeFrames,
+  planCycle,
+  syncCycles,
+  textWidthPx,
+  textWidthTb8,
+  transitionCost,
+  type CyclePlan,
+} from "./animation";
 import { formatAirport, formatDuration, formatNumber, pad } from "./format";
 import type { AnimConfig, FlightData } from "./types";
 
 const BOTTOM_H = 22; // fixed height for the bottom animation region
+const AIRCRAFT_H = 10; // fixed height for the aircraft model/reg line
+const SUB_FONT = "Dina_r400-6";
+
+/** A built subscreen plus its intrinsic frame count. */
+export interface Screen {
+  widget: WidgetSpec;
+  frames: number;
+}
+
+interface TextLine {
+  content: string;
+  color: string;
+}
+
+/** Marquee that scrolls the text fully out to the left (offsetEnd = width). */
+function scrollOutLine(line: TextLine, width: number, delay: number): WidgetSpec {
+  return Marquee({
+    width,
+    offsetEnd: width,
+    delay,
+    child: Text({ content: line.content, color: line.color, font: SUB_FONT }),
+  });
+}
+
+function scrollOutFrames(line: TextLine, width: number, delay: number): number {
+  return marqueeFrames({ cw: textWidthPx(line.content), size: width, offsetEnd: width, delay });
+}
 
 export function buildTimingScreen(
   flight: FlightData,
   nowUnix: number,
   width: number,
-): WidgetSpec | null {
-  const lines: WidgetSpec[] = [];
+  transCost: number,
+): Screen | null {
+  const texts: TextLine[] = [];
   if (flight.depTime) {
     const elapsed = nowUnix - flight.depTime;
     if (flight.delaySeconds) {
-      lines.push(Marquee({ width, offsetEnd: width, child: Text({ content: `Delayed by ${formatDuration(flight.delaySeconds)}`, color: "#f80", font: "Dina_r400-6" }) }));
+      texts.push({ content: `Delayed by ${formatDuration(flight.delaySeconds)}`, color: "#f80" });
     } else if (elapsed > 0) {
-      lines.push(Marquee({ width, offsetEnd: width, child: Text({ content: `Departed ${formatDuration(elapsed)} ago`, color: "#aaa", font: "Dina_r400-6" }) }));
+      texts.push({ content: `Departed ${formatDuration(elapsed)} ago`, color: "#aaa" });
     } else {
-      lines.push(Marquee({ width, offsetEnd: width, child: Text({ content: `Departing in ${formatDuration(-elapsed)}`, color: "#aaa", font: "Dina_r400-6" }) }));
+      texts.push({ content: `Departing in ${formatDuration(-elapsed)}`, color: "#aaa" });
     }
   }
   if (flight.arrTime) {
     const remaining = flight.arrTime - nowUnix;
     if (remaining > 0) {
-      lines.push(Marquee({ width, offsetEnd: width, child: Text({ content: `Arriving in ${formatDuration(remaining)}`, color: "#aaa", font: "Dina_r400-6" }) }));
+      texts.push({ content: `Arriving in ${formatDuration(remaining)}`, color: "#aaa" });
     } else {
-      lines.push(Marquee({ width, offsetEnd: width, child: Text({ content: `Arrived ${formatDuration(-remaining)} ago`, color: "#aaa", font: "Dina_r400-6" }) }));
+      texts.push({ content: `Arrived ${formatDuration(-remaining)} ago`, color: "#aaa" });
     }
   }
-  if (lines.length === 0) return null;
+  if (texts.length === 0) return null;
+
+  const lines = texts.map((t) => scrollOutLine(t, width, transCost));
+  const frames = Math.max(...texts.map((t) => scrollOutFrames(t, width, transCost)));
 
   // Progress bar: dep_time → arr_time.
   let progressBar: WidgetSpec | null = null;
@@ -78,17 +129,20 @@ export function buildTimingScreen(
 
   const children: WidgetSpec[] = [...lines];
   if (progressBar) children.push(progressBar);
-  return Box({
-    width,
-    height: BOTTOM_H,
-    child: Column({ mainAlign: "start", crossAlign: "start", expanded: true, children }),
-  });
+  return {
+    widget: Box({
+      width,
+      height: BOTTOM_H,
+      child: Column({ mainAlign: "start", crossAlign: "start", expanded: true, children }),
+    }),
+    frames,
+  };
 }
 
 export function buildTelemetryScreen(
   flight: FlightData,
   width: number,
-): WidgetSpec | null {
+): Screen | null {
   if (flight.onGround || !flight.speed) return null;
   const lines: WidgetSpec[] = [];
   if (flight.speed || flight.distance) {
@@ -139,48 +193,87 @@ export function buildTelemetryScreen(
     }
   }
   if (lines.length === 0) return null;
-  return Box({
-    width: width - 1,
-    height: BOTTOM_H,
-    child: Column({ mainAlign: "end", crossAlign: "start", expanded: true, children: lines }),
-  });
+  return {
+    widget: Box({
+      width: width - 1,
+      height: BOTTOM_H,
+      child: Column({ mainAlign: "end", crossAlign: "start", expanded: true, children: lines }),
+    }),
+    frames: 1, // static text only
+  };
 }
 
 export function buildStatusScreen(
   flight: FlightData,
   width: number,
-): WidgetSpec | null {
+  transCost: number,
+): Screen | null {
   const label = flight.phaseLabel;
   if (!label) return null;
-  return Box({
-    width,
-    height: BOTTOM_H,
-    child: Column({
-      mainAlign: "end",
-      crossAlign: "start",
-      expanded: true,
-      children: [Marquee({ width, offsetEnd: width, child: Text({ content: label, color: "#aaa", font: "Dina_r400-6" }) })],
+  const line: TextLine = { content: label, color: "#aaa" };
+  return {
+    widget: Box({
+      width,
+      height: BOTTOM_H,
+      child: Column({
+        mainAlign: "end",
+        crossAlign: "start",
+        expanded: true,
+        children: [scrollOutLine(line, width, transCost)],
+      }),
     }),
-  });
+    frames: scrollOutFrames(line, width, transCost),
+  };
 }
 
 export function buildAirportsScreen(
   flight: FlightData,
   width: number,
-): WidgetSpec | null {
-  const lines: WidgetSpec[] = [];
-  if (flight.originName) {
-    lines.push(Marquee({ width, child: Text({ content: formatAirport(flight.originName), color: "#aaa", font: "Dina_r400-6" }), loop: true, endDelay: 10, delay: 10 }));
-  }
-  if (flight.destName) {
-    lines.push(Marquee({ width, child: Text({ content: formatAirport(flight.destName), color: "#aaa", font: "Dina_r400-6" }), loop: true, endDelay: 10, delay: 10 }));
-  }
-  if (lines.length === 0) return null;
-  return Box({
-    width,
-    height: BOTTOM_H,
-    child: Column({ mainAlign: "end", crossAlign: "start", expanded: true, children: lines }),
-  });
+  transCost: number,
+): Screen | null {
+  const delay = Math.max(10, transCost);
+  const endDelay = 10;
+  const texts: string[] = [];
+  if (flight.originName) texts.push(formatAirport(flight.originName));
+  if (flight.destName) texts.push(formatAirport(flight.destName));
+  if (texts.length === 0) return null;
+
+  const lines = texts.map((content) =>
+    Marquee({
+      width,
+      child: Text({ content, color: "#aaa", font: "tb-8" }),
+      loop: true,
+      endDelay,
+      delay,
+    }),
+  );
+  const frames = Math.max(
+    ...texts.map((content) =>
+      marqueeFrames({ cw: textWidthTb8(content), size: width, delay, endDelay, loop: true }),
+    ),
+  );
+  return {
+    widget: Box({
+      width,
+      height: BOTTOM_H,
+      child: Column({ mainAlign: "end", crossAlign: "start", expanded: true, children: lines }),
+    }),
+    frames,
+  };
+}
+
+/** One line of the aircraft model / registration switcher. */
+function buildAircraftLine(content: string, width: number, transCost: number): Screen {
+  return {
+    widget: Marquee({
+      width,
+      delay: transCost,
+      child: Text({ content, color: "#aaa", font: SUB_FONT }),
+    }),
+    // offsetStart == offsetEnd == 0: scrolls out and back in, ends at the
+    // start position (loop-safe).
+    frames: marqueeFrames({ cw: textWidthPx(content), size: width, delay: transCost }),
+  };
 }
 
 export function renderFlight(
@@ -203,55 +296,88 @@ export function renderFlight(
     logoWidth = 0;
   }
 
-  // Build bottom subscreens first so we know the total duration.
-  const subscreens: WidgetSpec[] = [];
-  if (animConfig.showTiming) {
-    const w = buildTimingScreen(flight, nowUnix, width);
-    if (w) subscreens.push(w);
-  }
-  if (animConfig.showTelemetry) {
-    const w = buildTelemetryScreen(flight, width);
-    if (w) subscreens.push(w);
-  }
-  if (animConfig.showAirports) {
-    const w = buildAirportsScreen(flight, width);
-    if (w) subscreens.push(w);
-  }
-  if (animConfig.showStatus) {
-    const w = buildStatusScreen(flight, width);
-    if (w) subscreens.push(w);
-  }
-
-  // Build cycling aircraft info line (model / registration).
-  const aircraftScreens: WidgetSpec[] = [];
-  if (flight.aircraftModel) {
-    aircraftScreens.push(Marquee({ width: width - logoWidth - 2, child: Text({ content: flight.aircraftModel, color: "#aaa", font: "Dina_r400-6" }) }));
-  }
-  if (flight.aircraftReg) {
-    aircraftScreens.push(Marquee({ width: width - logoWidth - 2, child: Text({ content: flight.aircraftReg, color: "#aaa", font: "Dina_r400-6" }) }));
-  }
-
-  // Compute synced duration across all cycling blocks.
   const style = animConfig.style || "slide_up";
   const hold = animConfig.holdFrames || 30;
   const transition = animConfig.transitionFrames || 10;
-  const aircraftFade = 5;
+  const transCost = transitionCost(style, transition);
 
-  const cycleEstimates: number[] = [];
-  if (subscreens.length > 1) cycleEstimates.push(cycleFrames(subscreens.length, hold, transition, style));
-  if (aircraftScreens.length > 1) cycleEstimates.push(cycleFrames(aircraftScreens.length, hold, aircraftFade, "crossfade"));
+  // Build bottom subscreens.
+  const subscreens: Screen[] = [];
+  if (animConfig.showTiming) {
+    const s = buildTimingScreen(flight, nowUnix, width, transCost);
+    if (s) subscreens.push(s);
+  }
+  if (animConfig.showTelemetry) {
+    const s = buildTelemetryScreen(flight, width);
+    if (s) subscreens.push(s);
+  }
+  if (animConfig.showAirports) {
+    const s = buildAirportsScreen(flight, width, transCost);
+    if (s) subscreens.push(s);
+  }
+  if (animConfig.showStatus) {
+    const s = buildStatusScreen(flight, width, transCost);
+    if (s) subscreens.push(s);
+  }
 
-  const targetDuration = syncDuration(cycleEstimates);
+  // Cycling aircraft info line (model / registration) — uses the same
+  // transition style, duration and hold as the bottom subscreens.
+  const aircraftWidth = width - logoWidth - 2;
+  const aircraftScreens: Screen[] = [];
+  if (flight.aircraftModel) {
+    aircraftScreens.push(buildAircraftLine(flight.aircraftModel, aircraftWidth, transCost));
+  }
+  if (flight.aircraftReg) {
+    aircraftScreens.push(buildAircraftLine(flight.aircraftReg, aircraftWidth, transCost));
+  }
 
-  // Build aircraft widget with synced duration.
-  let aircraftWidget: WidgetSpec;
+  // The carrier marquee loops once and then freezes at its start position
+  // (renderer paintLoop), so it is loop-safe as long as the total duration
+  // covers one full scroll.
+  const carrierFrames = marqueeFrames({
+    cw: textWidthPx(flight.carrier),
+    size: width - logoWidth,
+    loop: true,
+  });
+
+  // One-shot blocks (not cycling) must also fit inside the total duration:
+  // they end in a frame identical to their frame 0.
+  let minFrames = carrierFrames;
+  if (subscreens.length === 1) minFrames = Math.max(minFrames, subscreens[0].frames);
+  if (aircraftScreens.length === 1) minFrames = Math.max(minFrames, aircraftScreens[0].frames);
+
+  // Exact cycle planning: holds absorb marquee scroll lengths, then both
+  // cycles are padded to be commensurate and the total is a multiple of each.
+  const plans: CyclePlan[] = [];
+  let subPlan: CyclePlan | null = null;
+  let aircraftPlan: CyclePlan | null = null;
+  if (subscreens.length > 1) {
+    subPlan = planCycle(subscreens.map((s) => s.frames), hold, transCost);
+    plans.push(subPlan);
+  }
   if (aircraftScreens.length > 1) {
-    aircraftWidget = cycleCrossfade(aircraftScreens, { holdFrames: hold, fadeFrames: aircraftFade, bgColor: "#000", duration: targetDuration });
-    aircraftWidget = Box({ height: 10, child: aircraftWidget });
+    aircraftPlan = planCycle(aircraftScreens.map((s) => s.frames), hold, transCost);
+    plans.push(aircraftPlan);
+  }
+  const totalDuration = plans.length > 0 ? syncCycles(plans, minFrames) : 0;
+
+  // Build aircraft widget.
+  let aircraftWidget: WidgetSpec;
+  if (aircraftPlan) {
+    aircraftWidget = buildCycle(
+      aircraftScreens.map((s) => s.widget),
+      style,
+      aircraftPlan,
+      transition,
+      aircraftWidth,
+      AIRCRAFT_H,
+      totalDuration,
+    );
+    aircraftWidget = Box({ height: AIRCRAFT_H, child: aircraftWidget });
   } else if (aircraftScreens.length) {
-    aircraftWidget = aircraftScreens[0];
+    aircraftWidget = aircraftScreens[0].widget;
   } else {
-    aircraftWidget = Box({ height: 10 });
+    aircraftWidget = Box({ height: AIRCRAFT_H });
   }
 
   const top = Box({
@@ -281,19 +407,18 @@ export function renderFlight(
   let bottom: WidgetSpec | null = null;
 
   if (subscreens.length === 1) {
-    bottom = subscreens[0];
-  } else if (subscreens.length > 1) {
+    bottom = subscreens[0].widget;
+  } else if (subPlan) {
     delay = 100;
-
-    if (style === "crossfade") {
-      bottom = cycleCrossfade(subscreens, { holdFrames: hold, fadeFrames: transition, bgColor: "#000", duration: targetDuration });
-    } else if (style === "slide_up" || style === "slide_down") {
-      const direction = style === "slide_up" ? "up" : "down";
-      bottom = cycleSlide(subscreens, { holdFrames: hold, slideFrames: transition, direction, width, height: BOTTOM_H, duration: targetDuration });
-    } else {
-      bottom = cycleCrossfade(subscreens, { holdFrames: hold, fadeFrames: 0, bgColor: "#000", duration: targetDuration });
-    }
-
+    bottom = buildCycle(
+      subscreens.map((s) => s.widget),
+      style,
+      subPlan,
+      transition,
+      width,
+      BOTTOM_H,
+      totalDuration,
+    );
     // Clip the animation to a fixed size so slide/crossfade overflow is hidden
     // and PaintBounds stays constant across frames.
     bottom = Box({ width, height: BOTTOM_H, child: bottom });
