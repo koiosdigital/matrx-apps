@@ -120,8 +120,8 @@ export function buildTimingScreen(
       pad: pad(0, 1, 0, 0),
       child: Row({
         children: [
-          Box({ width: filled - 2, height: 1, color: barColor }),
-          Box({ width: width - filled - 2, height: 1, color: "#333" }),
+          Box({ width: filled - 1, height: 1, color: barColor }),
+          Box({ width: width - filled - 1, height: 1, color: "#333" }),
         ],
       }),
     });

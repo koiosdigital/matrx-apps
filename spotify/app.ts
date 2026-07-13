@@ -249,6 +249,7 @@ async function getCurrentlyPlaying(config: Config): Promise<NowPlaying | null> {
 
   const res = await http.get("https://api.spotify.com/v1/me/player/currently-playing", {
     headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
+    ttlSeconds: 15, // no caching for the currently playing track
   });
 
   if (res.status === 204) return null; // nothing playing
@@ -256,9 +257,9 @@ async function getCurrentlyPlaying(config: Config): Promise<NowPlaying | null> {
   return res.json() as NowPlaying;
 }
 
-/** Fetch remote album art (Spotify JPEG) as raw bytes for Image (24h host-cached). */
+/** Fetch remote album art (Spotify JPEG) as raw bytes for Image (7d host-cached). */
 async function fetchImage(url: string): Promise<Uint8Array> {
-  const res = await fetch(url, { headers: { "x-matrx-ttl": "86400" } });
+  const res = await fetch(url, { headers: { "x-matrx-ttl": "604800" } });
   return new Uint8Array(await res.arrayBuffer());
 }
 

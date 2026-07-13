@@ -23,10 +23,16 @@ import {
   type RootSpec,
 } from "@koiosdigital/matrx-sdk";
 
-import { getFlightDetail, getNearbyFlights, fetchLogo, pickFlight } from "./api";
+import {
+  getFlightDetail,
+  getNearbyFlights,
+  fetchLogo,
+  pickFlight,
+  searchFlights,
+} from "./api";
 import { pad } from "./format";
 import { renderFlight } from "./screens";
-import type { AnimConfig, FlightData } from "./types";
+import type { AnimConfig, FlightData, FlightDetail, NearbyFlight } from "./types";
 
 const DEFAULT_LOCATION =
   '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"role":"point"},"geometry":{"type":"Point","coordinates":[-86.92,40.42]}},{"type":"Feature","properties":{"role":"polygon"},"geometry":{"type":"Polygon","coordinates":[[[-87.42,40.92],[-86.42,40.92],[-86.42,39.92],[-87.42,39.92],[-87.42,40.92]]]}}]}';
@@ -36,6 +42,34 @@ interface LocationGeoJSON {
     properties: { role?: string };
     geometry: { coordinates: number[] };
   }>;
+}
+
+/**
+ * Weighted-pick a nearby flight and fetch its detail. When `skipArrived` is set,
+ * re-pick past already-arrived flights (and detail misses) up to a few times,
+ * returning null if every attempt is arrived so the render is skipped.
+ */
+async function pickFlightDetail(
+  flights: NearbyFlight[],
+  lat: number,
+  lng: number,
+  unit: string,
+  speed: string,
+  skipArrived: boolean,
+): Promise<FlightDetail | null> {
+  const remaining = [...flights];
+  const maxAttempts = skipArrived ? 4 : 1;
+  for (let attempt = 0; attempt < maxAttempts && remaining.length > 0; attempt++) {
+    const picked = await pickFlight(remaining);
+    if (!picked) break;
+    const idx = remaining.findIndex((f) => f.id === picked.id);
+    if (idx >= 0) remaining.splice(idx, 1);
+    const detail = await getFlightDetail(picked.id, lat, lng, unit, speed);
+    if (!detail) continue;
+    if (skipArrived && detail.status?.arrived) continue;
+    return detail;
+  }
+  return null;
 }
 
 export default async function render(config: Config): Promise<RootSpec | null> {
@@ -68,32 +102,45 @@ export default async function render(config: Config): Promise<RootSpec | null> {
     expandedCallsign: config.bool("expanded_callsign", true),
   };
 
-  const locStr = config.get("location") || DEFAULT_LOCATION;
   const unitParam = metric ? "metric" : "imperial";
   const speedParam = metric ? "kilometers" : "knots";
+  const trackSpecific = config.get("track_specific_flight") === "true";
+  const specificFlight = (config.get("specific_flight") || "").trim();
+  const skipArrived = config.get("skip_arrived") === "true";
 
-  // Extract observer coordinates from GeoJSON.
-  const loc = JSON.parse(locStr) as LocationGeoJSON;
   let centerLat = 0.0;
   let centerLng = 0.0;
-  for (const feat of loc.features) {
-    if (feat.properties.role === "point") {
-      const coords = feat.geometry.coordinates;
-      centerLng = coords[0];
-      centerLat = coords[1];
+  let detail: FlightDetail | null = null;
+
+  if (trackSpecific && specificFlight) {
+    // Specific-flight mode: resolve the stored callsign to the live instance
+    // (its FR24 id changes per flight), then fetch its detail. No observer
+    // location in this mode, so distance is omitted.
+    const matches = await searchFlights(specificFlight);
+    if (matches.length === 0) return null;
+    detail = await getFlightDetail(matches[0].id, 0, 0, unitParam, speedParam);
+    if (!detail) return null;
+    if (skipArrived && detail.status?.arrived) return null;
+  } else {
+    const locStr = config.get("location") || DEFAULT_LOCATION;
+
+    // Extract observer coordinates from GeoJSON.
+    const loc = JSON.parse(locStr) as LocationGeoJSON;
+    for (const feat of loc.features) {
+      if (feat.properties.role === "point") {
+        const coords = feat.geometry.coordinates;
+        centerLng = coords[0];
+        centerLat = coords[1];
+      }
     }
+
+    // Find nearby flights via API.
+    const flights = await getNearbyFlights(locStr, unitParam, speedParam);
+    if (!flights || flights.length === 0) return null;
+
+    detail = await pickFlightDetail(flights, centerLat, centerLng, unitParam, speedParam, skipArrived);
+    if (!detail) return null;
   }
-
-  // Find nearby flights via API.
-  const flights = await getNearbyFlights(locStr, unitParam, speedParam);
-  if (!flights || flights.length === 0) return null;
-
-  const flight = await pickFlight(flights);
-  if (!flight) return null;
-
-  // Get full detail from API.
-  const detail = await getFlightDetail(flight.id, centerLat, centerLng, unitParam, speedParam);
-  if (!detail) return null;
 
   const ident = detail.identification ?? {};
   const aircraftInfo = detail.aircraft ?? {};
@@ -189,4 +236,4 @@ export default async function render(config: Config): Promise<RootSpec | null> {
   return Root({ child: Padding({ pad: pad(1, 1, 1, 1), child: content }) });
 }
 
-export { getSchema, handlerTrackSpecificFlight } from "./schema";
+export { getSchema, handlerTrackSpecificFlight, handlerFlightSearch } from "./schema";

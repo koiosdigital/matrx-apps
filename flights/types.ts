@@ -45,6 +45,7 @@ export interface FlightDetail {
     verticalSpeed?: string;
   };
   phase?: { label?: string };
+  status?: { live?: boolean; text?: string | null; arrived?: boolean };
 }
 
 /** Normalized flight the render/subscreen builders consume. */

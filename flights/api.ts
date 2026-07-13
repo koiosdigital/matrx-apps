@@ -45,6 +45,50 @@ export async function getNearbyFlights(
   return res.json() as NearbyFlight[];
 }
 
+/** One match from `/flights/search`, shaped for the config typeahead picker. */
+export interface FlightSearchResult {
+  value: string; // stable callsign the picker stores (e.g. "UAL962")
+  display: string;
+  id: string; // current FR24 hex id, for immediate use
+  callsign?: string;
+  registration?: string | null;
+  type?: string | null;
+}
+
+/**
+ * Normalize a typeahead query. Once a flight is picked, the config host stores
+ * the whole option (`{display, text, value}`) and passes that JSON back as the
+ * query on subsequent calls — extract the `value` (the callsign) so we search
+ * for the flight, not the serialized blob.
+ */
+export function normalizeFlightQuery(query: string): string {
+  const s = query.trim();
+  if (s.startsWith("{")) {
+    try {
+      const o = JSON.parse(s) as { value?: unknown };
+      if (typeof o.value === "string") return o.value.trim();
+    } catch {
+      // fall through — treat as raw text
+    }
+  }
+  return s;
+}
+
+/** Search live flights by IATA flight number ("UA962") or ICAO callsign. */
+export async function searchFlights(query: string): Promise<FlightSearchResult[]> {
+  const q = normalizeFlightQuery(query);
+  if (q.length < 2) return [];
+  const url = buildUrl("/flights/search", { query: q });
+  const signature = await computeSignature("GET", url.pathname + url.search, "");
+  const res = await http.get(url.toString(), {
+    headers: { "X-Request-Signature": signature },
+    ttlSeconds: 60 * 15, // 15m cache for search results
+  });
+  if (res.status !== 200) return [];
+  const body = res.json() as { results?: FlightSearchResult[] };
+  return body.results ?? [];
+}
+
 export async function getFlightDetail(
   flightId: string,
   lat: number,
@@ -61,17 +105,33 @@ export async function getFlightDetail(
   const signature = await computeSignature("GET", url.pathname + url.search, "");
   const res = await http.get(url.toString(), {
     headers: { "X-Request-Signature": signature },
-    ttlSeconds: 120,
+    ttlSeconds: 120, // 2m cache for flight details
   });
   if (res.status !== 200) return null;
   return res.json() as FlightDetail;
 }
 
+/** How long a picked flight stays on screen before a re-pick. */
+const STICKY_SECONDS = 120;
+
 export async function pickFlight(
   flights: NearbyFlight[],
 ): Promise<NearbyFlight | null> {
   if (!flights || flights.length === 0) return null;
-  if (flights.length === 1) return flights[0];
+
+  // Sticky window: keep showing the current pick for STICKY_SECONDS, but
+  // resolve it against the fresh list so position/altitude stay live. If it
+  // flew out of range, fall through and re-pick immediately.
+  const stickyId = await cache.get("current_flight_id");
+  if (stickyId) {
+    const current = flights.find((f) => f.id === stickyId);
+    if (current) return current;
+  }
+
+  if (flights.length === 1) {
+    await rememberPick(flights[0]);
+    return flights[0];
+  }
 
   // Weight by inverse distance: closer flights get higher weight.
   const weights: number[] = [];
@@ -81,11 +141,12 @@ export async function pickFlight(
     weights.push(1.0 / d);
   }
 
-  // Reduce weight of the last-shown flight to encourage variety.
+  // Reduce weight of the last-shown flight to encourage variety. This key
+  // outlives the sticky window so the de-weight applies on the re-pick.
   const lastId = await cache.get("last_flight_id");
   if (lastId) {
     for (let i = 0; i < flights.length; i++) {
-      if (flights[i].id === lastId && flights.length > 1) {
+      if (flights[i].id === lastId) {
         weights[i] = weights[i] * 0.15;
       }
     }
@@ -105,15 +166,21 @@ export async function pickFlight(
     }
   }
 
-  const pickedId = picked.id ?? "";
-  if (pickedId) await cache.set("last_flight_id", pickedId, 300);
+  await rememberPick(picked);
   return picked;
+}
+
+async function rememberPick(picked: NearbyFlight): Promise<void> {
+  const id = picked.id ?? "";
+  if (!id) return;
+  await cache.set("current_flight_id", id, STICKY_SECONDS);
+  await cache.set("last_flight_id", id, STICKY_SECONDS + 300);
 }
 
 export async function fetchLogo(url: string | undefined): Promise<Uint8Array | null> {
   if (!url) return null;
-  // Fetch the airline logo directly (24h TTL); Image scales it to logo size.
-  const res = await fetch(url, { headers: { "x-matrx-ttl": "86400" } });
+  // Fetch the airline logo directly (7d TTL); Image scales it to logo size.
+  const res = await fetch(url, { headers: { "x-matrx-ttl": "604800" } });
   if (res.status !== 200) return null;
   return new Uint8Array(await res.arrayBuffer());
 }

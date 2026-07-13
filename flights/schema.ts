@@ -3,22 +3,46 @@
  *
  * `handlerTrackSpecificFlight` is the generated-field handler (named export,
  * invoked by the host): when "Track Specific Flight" is on it swaps the
- * location picker for a free-text flight-number field; otherwise it emits the
- * GeoJSON location picker.
+ * location picker for a searchable flight-number typeahead; otherwise it emits
+ * the GeoJSON location picker.
+ *
+ * `handlerFlightSearch` backs that typeahead — the host calls it with whatever
+ * the user has typed and it queries the flights API for live matches.
  */
 
-import { schema, type Schema, type SchemaField } from "@koiosdigital/matrx-sdk";
+import { schema, type Schema, type SchemaField, type SchemaOption } from "@koiosdigital/matrx-sdk";
+
+import { searchFlights } from "./api";
+
+/** Parse the stored typeahead selection the host echoes back (`{display,value}`). */
+function parseStoredOption(input: string): { display: string; value: string } | null {
+  const s = input.trim();
+  if (!s.startsWith("{")) return null;
+  try {
+    const o = JSON.parse(s) as { display?: unknown; text?: unknown; value?: unknown };
+    if (typeof o.value === "string") {
+      const display = typeof o.display === "string" ? o.display
+        : typeof o.text === "string" ? o.text
+          : o.value;
+      return { display, value: o.value };
+    }
+  } catch {
+    // not JSON
+  }
+  return null;
+}
 
 export function handlerTrackSpecificFlight(
   trackSpecificFlight: string,
 ): SchemaField[] {
   if (trackSpecificFlight === "true") {
     return [
-      schema.text({
+      schema.typeahead({
         id: "specific_flight",
         name: "Flight Number",
-        desc: "Enter a specific flight number to track (e.g. 'AA100'). This will override the location-based search and show the specified flight if it's currently in the air.",
+        desc: "Search a live flight by number (e.g. 'UA962' or 'UAL962') and pick it to track. Overrides the location-based search.",
         icon: "planeDeparture",
+        handler: "handlerFlightSearch",
       }),
     ];
   }
@@ -32,6 +56,20 @@ export function handlerTrackSpecificFlight(
       collectPoint: true,
     }),
   ];
+}
+
+/** Typeahead handler: return live flights matching the typed query. */
+export async function handlerFlightSearch(pattern: string): Promise<SchemaOption[]> {
+  const results = await searchFlights(pattern);
+  const options = results.map((r) => schema.option({ display: r.display, value: r.value }));
+
+  // When the host echoes back a stored selection whose flight is no longer live
+  // (search returns nothing for it), keep showing the choice so it isn't lost.
+  const stored = parseStoredOption(pattern);
+  if (stored && !options.some((o) => o.value === stored.value)) {
+    options.unshift(schema.option({ display: stored.display, value: stored.value }));
+  }
+  return options;
 }
 
 export function getSchema(): Schema {
@@ -136,6 +174,13 @@ export function getSchema(): Schema {
         desc: "Show current flight phase (e.g. Cruising, Climbing, Taxiing).",
         icon: "circleInfo",
         default: true,
+      }),
+      schema.toggle({
+        id: "skip_arrived",
+        name: "Skip Arrived Flights",
+        desc: "Don't show flights that have already arrived at their destination.",
+        icon: "planeArrival",
+        default: false,
       }),
     ],
   });
