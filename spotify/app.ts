@@ -6,9 +6,11 @@
  * Auth model (user-defined OAuth client, §7 Koios fork parity): the user
  * supplies their own Spotify client id/secret, so the token exchange runs
  * directly against accounts.spotify.com. The oauth2 handler persists
- * `client_id:client_secret<SEP>refresh_token` as the connection value; each
- * render mints a short-lived access token from it (host-TTL-cached like
- * chargepoint, since the MATRX config store is write-once/read-only).
+ * `client_id:client_secret<SEP>refresh_token` as the connection value; the
+ * minted access token lives in the `cache` module (pixlet parity, persisted
+ * host-side since matrx 0.1.11), keyed per refresh token, so ~one exchange
+ * per 50min serves every render — the MATRX config store is
+ * write-once/read-only.
  *
  * Differences from the Starlark original, forced by the SDK surface:
  *  - No `secret.encrypt` in the SDK (only `secret.decrypt`); the handler
@@ -41,7 +43,7 @@ import {
   type Schema,
   type WidgetSpec,
 } from "@koiosdigital/matrx-sdk";
-import { http } from "@koiosdigital/matrx-sdk/stdlib";
+import { cache, http } from "@koiosdigital/matrx-sdk/stdlib";
 
 import SPOTIFY_LOGO from "./logo.png";
 
@@ -52,7 +54,7 @@ const PRIMARY_COLOR = "#1db954";
 
 /**
  * Cache window for a minted access token. Kept under Spotify's access-token
- * lifetime (1h) so the host TTL cache serves most renders from one refresh
+ * lifetime (1h) so the cache module serves most renders from one refresh
  * exchange rather than refreshing on every render.
  */
 const ACCESS_TOKEN_CACHE_SECONDS = 50 * 60;
@@ -210,17 +212,24 @@ function layoutWide(
   });
 }
 
-/** Exchange the stored refresh token for a fresh access token. */
+/**
+ * Exchange the stored refresh token for a fresh access token, reusing a
+ * cached one when available. Keyed per refresh token — the cache module is
+ * app-namespaced but shared across this app's installations.
+ */
 async function getAccessToken(
   clientId: string,
   clientSecret: string,
   refreshToken: string,
 ): Promise<string> {
+  const cacheKey = `access-token:${refreshToken}`;
+  const cached = await cache.get(cacheKey);
+  if (cached !== null) return cached;
+
   const res = await http.post("https://accounts.spotify.com/api/token", {
     headers: { Accept: "application/json" },
     auth: [clientId, clientSecret],
     formBody: { grant_type: "refresh_token", refresh_token: refreshToken },
-    ttlSeconds: ACCESS_TOKEN_CACHE_SECONDS,
   });
   if (res.status !== 200) {
     throw new Error(
@@ -228,6 +237,7 @@ async function getAccessToken(
     );
   }
   const { access_token } = res.json() as { access_token: string };
+  await cache.set(cacheKey, access_token, ACCESS_TOKEN_CACHE_SECONDS);
   return access_token;
 }
 
@@ -249,7 +259,7 @@ async function getCurrentlyPlaying(config: Config): Promise<NowPlaying | null> {
 
   const res = await http.get("https://api.spotify.com/v1/me/player/currently-playing", {
     headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
-    ttlSeconds: 15, // no caching for the currently playing track
+    ttlSeconds: 15, // near-live: one origin hit per ~15s window across renders
   });
 
   if (res.status === 204) return null; // nothing playing
