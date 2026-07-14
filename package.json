@@ -7,15 +7,17 @@
   "packageManager": "pnpm@10.26.2",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "check": "for d in */manifest.json; do pnpm exec matrx check \"$(dirname \"$d\")\" || exit 1; done",
-    "bundle": "for d in */manifest.json; do app=$(dirname \"$d\"); pnpm exec matrx bundle \"$app\" -o \"dist/$app\" || exit 1; done"
+    "check": "for d in apps/*/manifest.json; do pnpm exec matrx check \"$(dirname \"$d\")\" || exit 1; done",
+    "bundle": "for d in apps/*/manifest.json; do app=$(dirname \"$d\"); pnpm exec matrx bundle \"$app\" -o \"dist/$app\" || exit 1; done"
   },
   "dependencies": {
-    "@koiosdigital/matrx-sdk": "^0.1.11",
+    "@koiosdigital/matrx-sdk": "^0.1.14",
+    "blueimp-md5": "^2.19.0",
     "qrcode-generator": "^2.0.4"
   },
   "devDependencies": {
-    "@koiosdigital/matrx-cli": "^0.1.11",
+    "@koiosdigital/matrx-cli": "^0.1.14",
+    "@types/blueimp-md5": "^2.18.2",
     "@types/node": "^26.1.0",
     "@types/qrcode-generator": "^1.0.6",
     "typescript": "^5.8.0"

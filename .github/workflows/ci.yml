@@ -20,7 +20,7 @@ jobs:
       - name: matrx check (every app)
         run: |
           set -e
-          for d in */manifest.json; do
+          for d in apps/*/manifest.json; do
             app=$(dirname "$d")
             echo "::group::matrx check $app"
             pnpm exec matrx check "$app"
@@ -48,15 +48,15 @@ jobs:
       - name: Bundle every app
         run: |
           set -e
-          for d in */manifest.json; do
-            app=$(dirname "$d")
-            pnpm exec matrx bundle "$app" -o "dist/$app"
+          for d in apps/*/manifest.json; do
+            app=$(basename "$(dirname "$d")")
+            pnpm exec matrx bundle "apps/$app" -o "dist/$app"
           done
       - name: Upload bundles to R2 (unversioned — replace in place at apps/<id>/)
         run: |
           set -e
-          for d in */manifest.json; do
-            app=$(dirname "$d")
+          for d in apps/*/manifest.json; do
+            app=$(basename "$(dirname "$d")")
             id=$(node -p "require('./dist/$app/manifest.json').id")
             echo "::group::upload $id"
             aws s3 cp "dist/$app/bundle.js" \

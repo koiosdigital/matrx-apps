@@ -9,6 +9,8 @@
  * is available as a platform global inside the render isolate.
  */
 
+import { secret } from "@koiosdigital/matrx-sdk/stdlib";
+
 const REQUEST_SIGNING_SECRET =
   "2fb30a0807dd17451248eea38b939946057d4fe36b80005f1b360967e6ea4f288a72e520394c5d24b11afe4eecfd32074dd07605c586ad2f316bdce320f1376d";
 
@@ -34,9 +36,11 @@ export async function computeSignature(
   pathWithQuery: string,
   body: string,
 ): Promise<string> {
+  const signingKey = await secret.decrypt("MTX1:BI/yKXBCQ4vpTl2/XzStevKf29oc2PEvQ4pL1nnHltxIUMJRadvrfVvMbIad3w9oWQe/fducCVd3IK2+yRx+WA+xGX3SgP3TPjTJyxpK/J4nxulVwabl0t1uNQ0pigc7STPmt1Y8X6KxqHMnGrZXwBZ/GR6j1RGhbG/32eBiinn8zLVenlu95Sz7Kd706qxkbFAZtLcdplzVA7Ed1619wT7n/6F7Z2vfZZdBWZCC3NEzU+aiRbi/lFZR4ohcONYRrBfkSWxtcikpdPxUFg92UtTnbIP/CbuNFdv/Iuo=");
+  if (!signingKey) throw new Error("Failed to decrypt signing key");
   const key = await crypto.subtle.importKey(
     "raw",
-    hexToBytes(REQUEST_SIGNING_SECRET),
+    hexToBytes(signingKey),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],

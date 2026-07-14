@@ -1,0 +1,16 @@
+{
+  "id": "lastfm",
+  "name": "Last.fm",
+  "summary": "Now scrobbling on Last.fm",
+  "desc": "Shows the track currently scrobbling (or the latest scrobble) on your connected Last.fm account.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "ws.audioscrobbler.com",
+    "lastfm.freetls.fastly.net"
+  ],
+  "dependencies": [
+    "blueimp-md5"
+  ],
+  "schemaVersion": "1"
+}
