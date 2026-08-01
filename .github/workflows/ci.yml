@@ -67,3 +67,22 @@ jobs:
               --endpoint-url "$R2_ENDPOINT" --content-type application/json
             echo "::endgroup::"
           done
+      - name: Remove apps deleted from the repo
+        run: |
+          set -e
+          # Registry keys are manifest ids (may differ from directory names),
+          # so build the expected set from the built manifests.
+          expected=$(for d in apps/*/manifest.json; do
+            app=$(basename "$(dirname "$d")")
+            node -p "require('./dist/$app/manifest.json').id"
+          done)
+          aws s3 ls "s3://kd-matrx-apps/apps/" --endpoint-url "$R2_ENDPOINT" \
+            | awk '$1 == "PRE" {print $2}' | sed 's#/$##' \
+            | while read -r id; do
+                if ! grep -qxF "$id" <<< "$expected"; then
+                  echo "::group::delete stale app $id"
+                  aws s3 rm "s3://kd-matrx-apps/apps/$id/" --recursive \
+                    --endpoint-url "$R2_ENDPOINT"
+                  echo "::endgroup::"
+                fi
+              done

@@ -1,0 +1,17 @@
+{
+  "id": "ouraring",
+  "name": "Oura Ring",
+  "summary": "View your Oura Ring scores",
+  "desc": "Displays the readiness, activity and sleep scores from your connected Oura Ring account along with a historical chart over the past days.",
+  "author": "Aiden Vigue",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "api.ouraring.com",
+    "cloud.ouraring.com"
+  ],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/ouraring/ouraring.star",
+    "notes": "Upgraded from personal-access-token to OAuth2 (user-defined client, rotating refresh tokens via cache); responsive UI with score-band colors and a three-panel 128x64 layout."
+  }
+}

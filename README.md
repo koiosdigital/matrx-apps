@@ -23,7 +23,8 @@ npm run check             # matrx check over all apps (what CI enforces)
 Every push and PR runs `matrx check` on each app; a failing app blocks the
 merge. On push to `main`, each app is bundled (`matrx bundle`) and uploaded to
 the `kd-matrx-apps` R2 bucket under the render Worker's registry keys.
-Bundles are not versioned — each publish replaces the app's files in place:
+Bundles are not versioned — each publish replaces the app's files in place,
+and apps deleted from the repo are removed from the bucket:
 
 ```
 apps/<id>/bundle.js        apps/<id>/manifest.json

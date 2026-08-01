@@ -1,0 +1,19 @@
+{
+  "id": "datadog",
+  "name": "DataDog Monitors",
+  "summary": "View your DataDog Monitors",
+  "desc": "By default displays any monitors that are in the status alert but allows for customizing the query yourself based on DataDog's syntax.",
+  "author": "Cavallando",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "api.datadoghq.com",
+    "api.datadoghq.eu",
+    "api.us3.datadoghq.com",
+    "api.us5.datadoghq.com"
+  ],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/datadogmonitors/datadog_monitors.star",
+    "notes": "Hand-ported Starlark → TS; http TTL cache replaces manual cache, added site dropdown, screen-size-aware slide widths."
+  }
+}

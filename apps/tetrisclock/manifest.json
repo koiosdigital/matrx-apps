@@ -1,0 +1,14 @@
+{
+  "id": "tetrisclock",
+  "name": "Tetris Clock",
+  "summary": "Falling block clock",
+  "desc": "Shows the current time by animating falling blocks. Highly customizable.",
+  "author": "MarkGamed7794",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/tetrisclock/tetris_clock.star",
+    "notes": "Hand-ported Starlark → TS; keeps the Koios dynamic screen-size choreography (64x32 / 64x64 / 128x64)."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "bigclock",
+  "name": "Big Clock",
+  "summary": "Display a large retro-style clock",
+  "desc": "Display a large retro-style clock; the clock can change color at night based on sunrise and sunset times for a given location, supports 24-hour and 12-hour variants and optionally flashes the separator.",
+  "author": "Joey Hoer",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/bigclock/big_clock.star",
+    "notes": "Hand-ported Starlark → TS; sunrise module replaced by a local Almanac-algorithm port, 2x digit scaling on 128x64."
+  }
+}
