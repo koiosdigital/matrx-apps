@@ -1,0 +1,14 @@
+{
+  "id": "fireworks",
+  "name": "Fireworks",
+  "summary": "Fireworks with a message",
+  "desc": "Fireworks light up the sky above an optional scrolling message.",
+  "author": "Daniel Sitnik",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/fireworks/fireworks.star",
+    "notes": "Hand-ported Starlark → TS; rockets/altitudes/marquee follow the canvas, rocket count scales with width."
+  }
+}

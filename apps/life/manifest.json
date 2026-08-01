@@ -1,0 +1,14 @@
+{
+  "id": "life",
+  "name": "Life",
+  "summary": "Conways Game of Life",
+  "desc": "Runs a famous cellular automaton and animates the state on screen.",
+  "author": "dinosaursrarr",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/life/life.star",
+    "notes": "Hand-ported Starlark → TS; rows are RLE-encoded, 2px cells on 128x64 keep the classic 64x32 board density."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "dvdlogo",
+  "name": "DVD Logo",
+  "summary": "Bouncing DVD Logo",
+  "desc": "A screensaver from before the streaming era. Will it hit the corner this time?",
+  "author": "Mack Ward",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/dvdlogo/dvd_logo.star",
+    "notes": "Hand-ported Starlark → TS; bounce box follows the canvas, 2x logo on 128x64."
+  }
+}

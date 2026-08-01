@@ -1,0 +1,14 @@
+{
+  "id": "worldclock",
+  "name": "World Clock",
+  "summary": "Multi timezone clock",
+  "desc": "Displays the time in up to four different locations.",
+  "author": "Elliot Bentley",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/worldclock/world_clock.star",
+    "notes": "Hand-ported Starlark → TS; sunrise module replaced by local suncalc port, responsive column widths, tb-8 on 128-wide."
+  }
+}
