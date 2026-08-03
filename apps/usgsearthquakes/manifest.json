@@ -1,0 +1,16 @@
+{
+  "id": "usgsearthquakes",
+  "name": "USGS Earthquakes",
+  "summary": "Recent nearby earthquakes",
+  "desc": "Displays the most recent earthquakes based on location, from the free USGS feed.",
+  "author": "Chris Silverberg (csilv)",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "earthquake.usgs.gov"
+  ],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/usgsearthquakes/usgs_earthquakes.star",
+    "notes": "Hand-ported Starlark → TS; humanize.time replaced by a local helper, text metrics estimated, canvas-sized layout."
+  }
+}

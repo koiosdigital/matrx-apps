@@ -1,0 +1,17 @@
+{
+  "id": "wifiqrcode",
+  "name": "WiFi QR Code",
+  "summary": "Creates a WiFi QR code",
+  "desc": "This app creates a scannable WiFi QR code. Simply scan the QR code and your phone will join the WiFi network. Not compatible with Enterprise networks.",
+  "author": "misusage",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "dependencies": [
+    "qrcode-generator"
+  ],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/wifiqrcode/wifi_qr_code.star",
+    "notes": "Hand-ported Starlark → TS; pixlet qrcode module replaced by qrcode-generator, module pixels scale with panel height."
+  }
+}

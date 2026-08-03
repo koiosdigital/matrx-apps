@@ -1,0 +1,16 @@
+{
+  "id": "nws-forecast",
+  "name": "NWS Live Forecast",
+  "summary": "Weather forecast from NWS",
+  "desc": "National Weather Service data showing the current temperature and weather forecast for today and the coming days. US locations only; no API key required.",
+  "author": "Andrey Goder",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "api.weather.gov"
+  ],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/nws_live_forecast/nws_live_forecast.star",
+    "notes": "Hand-ported Starlark → TS; fixed the Frost icon-picker bug, added the User-Agent NWS requires, 5 columns on 128-wide."
+  }
+}

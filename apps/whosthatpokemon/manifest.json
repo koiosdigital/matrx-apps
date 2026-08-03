@@ -1,0 +1,18 @@
+{
+  "id": "whosthatpokemon",
+  "name": "Who's That Pokemon",
+  "summary": "Pokemon Quiz Game",
+  "desc": "Test your Pokemon Master knowledge with this rendition of \"Who's That Pokemon?\". Turn off classic mode to crank up the difficulty.",
+  "author": "Nicole Brooks",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "pokeapi.co",
+    "pokesprites.imgix.net",
+    "raw.githubusercontent.com"
+  ],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/whosthatpokemon/whosthatpokemon.star",
+    "notes": "Hand-ported Starlark → TS; binary sprites via raw fetch + x-matrx-ttl, 2x composition on 128x64."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "digitalrain",
+  "name": "Digital Rain",
+  "summary": "Digital Rain à la Matrix",
+  "desc": "Generates an animation loop of falling code similar to that from the Matrix movie. A new sequence every 30 minutes.",
+  "author": "Henry So, Jr.",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/digitalrain/digital_rain.star",
+    "notes": "Hand-ported Starlark → TS; same LCG sequence, column/row counts follow the canvas, glyphs PNG32-normalized in glyphs.ts."
+  }
+}

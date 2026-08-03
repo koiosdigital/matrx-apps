@@ -1,0 +1,16 @@
+{
+  "id": "hassentity",
+  "name": "Hass Entity",
+  "summary": "Display Hass entity state",
+  "desc": "Display an externally accessible Home Assistant entity state or attribute via Nabu Casa.",
+  "author": "InTheDaylight14",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "*.ui.nabu.casa"
+  ],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/hassentity/hass_entity.star",
+    "notes": "Hand-ported Starlark → TS; wildcard nabu.casa egress, canvas-sized layout."
+  }
+}

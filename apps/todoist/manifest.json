@@ -1,0 +1,16 @@
+{
+  "id": "todoist",
+  "name": "Todoist",
+  "summary": "Integration with Todoist",
+  "desc": "Shows the number of tasks you have due today (or matching a custom filter).",
+  "author": "zephyern",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "api.todoist.com"
+  ],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/todoist/todoist.star",
+    "notes": "Hand-ported Starlark → TS; Tidbyt's encrypted OAuth client replaced by a personal API token field."
+  }
+}
