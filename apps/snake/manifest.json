@@ -1,0 +1,14 @@
+{
+  "id": "snake",
+  "name": "Snake",
+  "summary": "Snake game animation",
+  "desc": "Shows random snake game animation.",
+  "author": "noahpodgurski",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/snake/snake.star",
+    "notes": "Hand-ported Starlark → TS; RLE frame encoding, 2px cells on 128x64 keep the classic board density."
+  }
+}

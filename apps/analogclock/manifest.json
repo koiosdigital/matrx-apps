@@ -1,0 +1,14 @@
+{
+  "id": "analogclock",
+  "name": "Analog Clock",
+  "summary": "Shows a simple analog clock",
+  "desc": "Shows a simple analog clock with month and day.",
+  "author": "Chris Jones (@IPv6Freely)",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/analogclock/analog_clock.star",
+    "notes": "Hand-ported Starlark → TS; stacked layout on 64x64, 2x with larger fonts on 128x64."
+  }
+}

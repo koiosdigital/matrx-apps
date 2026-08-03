@@ -1,0 +1,14 @@
+{
+  "id": "moonphase",
+  "name": "Moon Phase",
+  "summary": "Shows current moon phase",
+  "desc": "Shows phase of moon based on location.",
+  "author": "Chris Wyman",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/moonphase/moon_phase.star",
+    "notes": "Hand-ported Starlark → TS; 1x1 mask PNGs became RLE alpha Boxes, 2x moon on 64x64/128x64 with bottom-overlay clock when narrow."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "fuzzyclock",
+  "name": "Fuzzy Clock",
+  "summary": "Human readable time",
+  "desc": "Display the time in a groovy, human-readable way.",
+  "author": "Max Timkovich",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/fuzzyclock/fuzzy_clock.star",
+    "notes": "Hand-ported Starlark → TS; vertically centered on tall panels, 6x13 on 128-wide."
+  }
+}
