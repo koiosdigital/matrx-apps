@@ -1,0 +1,14 @@
+{
+  "id": "binaryclock",
+  "name": "Binary Clock",
+  "summary": "Shows a binary clock",
+  "desc": "This app show the current date and time in a binary format.",
+  "author": "LukiLeu",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/binaryclock/binary_clock.star",
+    "notes": "Hand-ported Starlark → TS; bar/label boxes stretch to the canvas height instead of a fixed 32px strip."
+  }
+}

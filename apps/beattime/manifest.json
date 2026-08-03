@@ -1,0 +1,14 @@
+{
+  "id": "beattime",
+  "name": "Beat Time",
+  "summary": "Swatch Internet Time",
+  "desc": "Displays the current Swatch Internet Time (.beats) — the day divided into 1000 beats of Biel Mean Time.",
+  "author": "possan",
+  "entry": "app.ts",
+  "allowedHosts": [],
+  "schemaVersion": "1",
+  "ported": {
+    "from": "matrx-renderer/apps/apps/beattime/beat_time.star",
+    "notes": "Hand-ported Starlark → TS; 10x20 font on 128x64."
+  }
+}
