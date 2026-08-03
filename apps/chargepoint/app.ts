@@ -140,17 +140,17 @@ function getStatusInfo(data: StationData): StatusInfo {
     data.stationStatus !== "in_use" &&
     data.stationStatus !== "in_use_by_driver"
   ) {
-    return { ...base, image: BOLT, text: "Station Down", color: "#ff2222" };
+    return { ...base, image: BOLT, text: "Closed", color: "#ff2222" };
   } else if (charging) {
     return { ...base, image: BOLT_ANIMATED, text: "Charging", color: "#22ff22" };
-  } else if (taken === 0) {
+  } else if (taken !== total) {
     return {
       ...base,
       image: BOLT_ANIMATED,
-      text: `Open: ${ports[0].powerRange.max}${ports[0].powerRange.unit}`,
+      text: `${total - taken} Open`,
       color: "#22ff22",
     };
-  } else if (taken === total) {
+  } else {
     return { ...base, image: BOLT_GREY, text: "Occupied", color: "#ff2222" };
   }
   return { ...base, image: BOLT_ANIMATED, text: `${taken}/${total} in use`, color: "#ffff22" };
