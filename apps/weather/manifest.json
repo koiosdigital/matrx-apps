@@ -1,0 +1,12 @@
+{
+  "id": "weather",
+  "name": "Weather",
+  "summary": "A live sky, not a dashboard",
+  "desc": "Current conditions from Apple Weather, drawn as the sky itself: the gradient follows the real sun elevation at your location, rain and snow fall in parallax layers, clouds drift, and thunderstorms flash. Cycles through now, today's detail, and the next twelve hours. Weather data provided by Apple Weather — https://weatherkit.apple.com/legal-attribution.html",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "weatherkit.apple.com"
+  ],
+  "schemaVersion": "1"
+}
