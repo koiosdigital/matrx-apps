@@ -20,7 +20,7 @@
  * every render.
  */
 
-import { cache, http, secret } from "@koiosdigital/matrx-sdk/stdlib";
+import { cache, http, secret, time } from "@koiosdigital/matrx-sdk/stdlib";
 
 import type { Conditions, Scene } from "./types";
 
@@ -193,7 +193,7 @@ export async function fetchConditions(
   nowSec: number,
 ): Promise<Conditions> {
   const token = await bearerToken(nowSec);
-  if (!token) return demoConditions(nowSec);
+  if (!token) return demoConditions(nowSec, timezone);
 
   let parsed: Conditions | null = null;
   try {
@@ -229,7 +229,7 @@ export async function fetchConditions(
       /* fall through to the example payload */
     }
   }
-  return demoConditions(nowSec);
+  return demoConditions(nowSec, timezone);
 }
 
 function flatten(body: WkResponse): Conditions | null {
@@ -268,8 +268,12 @@ function flatten(body: WkResponse): Conditions | null {
  * Example payload for an unconfigured install and for the gallery preview.
  * Deterministic, and shaped to exercise the layout rather than flatter it.
  */
-export function demoConditions(nowSec: number): Conditions {
-  const dayStart = Math.floor(nowSec / 86400) * 86400;
+export function demoConditions(nowSec: number, timezone: string): Conditions {
+  // Sun times are built from local midnight, not UTC midnight, so the
+  // preview reads correctly wherever it is shown.
+  const local = time.fromUnix(nowSec).inLocation(timezone);
+  const at = (hour: number, minute: number): number =>
+    time.time({ year: local.year, month: local.month, day: local.day, hour, minute, location: timezone }).unix;
   return {
     scene: "partly",
     daylight: true,
@@ -279,8 +283,8 @@ export function demoConditions(nowSec: number): Conditions {
     lowC: 14.4,
     precipChance: 0.2,
     windKph: 13,
-    sunriseSec: dayStart + 6 * 3600 + 41 * 60,
-    sunsetSec: dayStart + 19 * 3600 + 49 * 60,
+    sunriseSec: at(6, 41),
+    sunsetSec: at(19, 49),
     hourlyC: [22.2, 22.8, 23.9, 25.0, 26.1, 27.2, 26.7, 25.6, 24.4, 22.8, 21.1, 19.4],
     alert: "",
     ageSeconds: 0,

@@ -65,7 +65,8 @@ function bottom(height: number, rows: number, child: WidgetSpec): WidgetSpec {
 export function nowScreen(ctx: Ctx, a: number): WidgetSpec {
   const c = ctx.cond;
   const stale = c.ageSeconds > 1800;
-  const label = c.demo ? "EXAMPLE" : stale ? `${formatAge(c.ageSeconds)} OLD` : "";
+  // Kept short: the locality already claims most of the top bar.
+  const label = c.demo ? "DEMO" : stale ? formatAge(c.ageSeconds) : "";
   const title = ctx.locality || SCENE_LABEL[c.scene] || "NOW";
 
   const temp = Text({
@@ -189,7 +190,7 @@ export function next12Screen(ctx: Ctx, a: number, prog: number): WidgetSpec {
             yLim: [lo - pad, hi + pad],
             color: alpha(ctx.accent, a),
             fill: true,
-            fillColor: alpha(ctx.accent, a * 0.22),
+            fillColor: alpha(ctx.accent, a * 0.34),
             chartType: "line",
           }),
         }),

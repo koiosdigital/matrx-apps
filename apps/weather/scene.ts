@@ -383,20 +383,20 @@ export function skyScene(
 
   if (scene === "rain" || scene === "sleet" || scene === "thunder") {
     layers.push(
-      fallLayer({ width, height, travel: 150, count: Math.round(70 * scale), length: 2, color: "#46608488", seed: 31, slant: 0.16, sway: 0 }),
-      fallLayer({ width, height, travel: 225, count: Math.round(60 * scale), length: 3, color: "#7096C4CC", seed: 41, slant: 0.2, sway: 0 }),
-      fallLayer({ width, height, travel: 300, count: Math.round(40 * scale), length: 4, color: "#B0D0F6", seed: 53, slant: 0.24, sway: 0 }),
+      fallLayer({ width, height, travel: 150, count: Math.round(140 * scale), length: 2, color: "#5A7CA8AA", seed: 31, slant: 0.16, sway: 0 }),
+      fallLayer({ width, height, travel: 225, count: Math.round(120 * scale), length: 3, color: "#86AEDCDD", seed: 41, slant: 0.2, sway: 0 }),
+      fallLayer({ width, height, travel: 300, count: Math.round(80 * scale), length: 4, color: "#C8E0FF", seed: 53, slant: 0.24, sway: 0 }),
     );
   }
   if (scene === "snow") {
     layers.push(
-      fallLayer({ width, height, travel: 75, count: Math.round(50 * scale), length: 1, color: "#BCC8DC99", seed: 61, slant: 0, sway: 2 }),
-      fallLayer({ width, height, travel: 150, count: Math.round(36 * scale), length: 1, color: "#ECF2FC", seed: 71, slant: 0, sway: 3 }),
+      fallLayer({ width, height, travel: 75, count: Math.round(90 * scale), length: 1, color: "#BCC8DCAA", seed: 61, slant: 0, sway: 2 }),
+      fallLayer({ width, height, travel: 150, count: Math.round(70 * scale), length: 1, color: "#ECF2FC", seed: 71, slant: 0, sway: 3 }),
     );
   }
   if (scene === "wind") {
     layers.push(
-      fallLayer({ width, height, travel: 150, count: Math.round(26 * scale), length: 1, color: "#C8D4E466", seed: 83, slant: 2.4, sway: 0 }),
+      fallLayer({ width, height, travel: 150, count: Math.round(60 * scale), length: 1, color: "#C8D4E488", seed: 83, slant: 2.4, sway: 0 }),
     );
   }
   if (scene === "thunder") {
