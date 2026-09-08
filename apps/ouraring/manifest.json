@@ -12,6 +12,6 @@
   "schemaVersion": "1",
   "ported": {
     "from": "matrx-renderer/apps/apps/ouraring/ouraring.star",
-    "notes": "Upgraded from personal-access-token to OAuth2 (user-defined client, rotating refresh tokens via cache); responsive UI with score-band colors and a three-panel 128x64 layout."
+    "notes": "Upgraded from personal-access-token to OAuth2 (user-defined client, rotating refresh tokens via the durable tokens store); responsive UI with score-band colors and a three-panel 128x64 layout."
   }
 }

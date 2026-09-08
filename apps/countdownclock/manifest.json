@@ -9,6 +9,6 @@
   "schemaVersion": "1",
   "ported": {
     "from": "matrx-renderer/apps/apps/countdownclock/countdown_clock.star",
-    "notes": "Hand-ported Starlark → TS as a corpus-migration reference."
+    "notes": "Redesigned from the original port: segmented countdown with urgency coloring, per-size layouts, celebration state. Config ids unchanged."
   }
 }

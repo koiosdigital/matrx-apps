@@ -108,7 +108,9 @@ export default async function render(config: Config): Promise<RootSpec> {
   // without being boxed. Sized to the two bands the content occupies.
   const scrims: WidgetSpec[] =
     intensity > 0
-      ? [scrimTop(width, 9, 0.55), scrimBottom(width, height, 15, 0.6)]
+      ? // Scrim depth tracks the panel so it always covers the content band,
+        // rather than half-covering a taller chart and muddying its fill.
+        [scrimTop(width, 9, 0.55), scrimBottom(width, height, Math.round(height * 0.47), 0.6)]
       : [];
 
   const screens: Screen[] = [];

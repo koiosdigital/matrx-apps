@@ -1,0 +1,20 @@
+{
+  "id": "calendar",
+  "name": "Calendar",
+  "summary": "What's next on your calendar",
+  "desc": "Your upcoming events, one at a time, with the time and how long until it starts. Connect a Google or Microsoft account directly, or point it at a published iCal link from Apple iCloud or anywhere else. Recurring events, all-day events and timezones are handled.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "oauth2.googleapis.com",
+    "www.googleapis.com",
+    "login.microsoftonline.com",
+    "graph.microsoft.com",
+    "*.icloud.com",
+    "calendar.google.com",
+    "outlook.office365.com",
+    "outlook.office.com",
+    "outlook.live.com"
+  ],
+  "schemaVersion": "1"
+}

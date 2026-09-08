@@ -4,13 +4,18 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@koiosdigital/matrx-runtime': 0.1.15
+  '@koiosdigital/matrx-render': 0.1.15
+  '@koiosdigital/matrx-dev-ui': 0.1.15
+
 importers:
 
   .:
     dependencies:
       '@koiosdigital/matrx-sdk':
-        specifier: ^0.1.14
-        version: 0.1.14
+        specifier: ^0.1.15
+        version: 0.1.15
       blueimp-md5:
         specifier: ^2.19.0
         version: 2.19.0
@@ -596,20 +601,26 @@ packages:
     resolution: {integrity: sha512-sZeTVjwcvhjqD+oW4oXOHZtpXgL59AFC4Fm8+OyAu0YyTsBE0XwrdVTybSOgfNC/hnhbTgM0LiUa3tX1UBTuag==}
     hasBin: true
 
-  '@koiosdigital/matrx-dev-ui@0.1.14':
-    resolution: {integrity: sha512-Ks58xHt9SYL4lnIGnZm900A0bgJh6LQJIVvrE/z2hsm2iFeobu3ezXg8B79Mz8rrjQUpmavLI10oc83HY/U0vw==}
+  '@koiosdigital/matrx-dev-ui@0.1.15':
+    resolution: {integrity: sha512-rAhD5ipnfkHOjX9FzI6vucy/Yipuja8xBXqwOcqrH7a2ZHft+mjj4E2OH9gSMpbn7UxIh9pwe/+Uh7Xoc+wPbw==}
 
-  '@koiosdigital/matrx-render@0.1.14':
-    resolution: {integrity: sha512-xx470IZMSAN8ctCQvoSYVwfUPuEGuYV/X82Xo4R/Hz3UbaXSMl0seJAqhAlhkgZ3/Ie7btFAQCqcc7u2nsPWSw==}
+  '@koiosdigital/matrx-render@0.1.15':
+    resolution: {integrity: sha512-Oveze1TkRL/YmYG2vdfyXV/+7BETvopeTzZkKYFCKd02It1GlV5YNKsYbHWwBOqR8UMry9J+AUGyEjUwQhMtNA==}
 
-  '@koiosdigital/matrx-runtime@0.1.14':
-    resolution: {integrity: sha512-ty0Id5D8MRWQwpj2VGxhCElK1ZrJChZb66hZ+NnJn11kESWfTr/+ABt0IkXA2xJkGlyxqT3UtTm3qwcC4x3fMA==}
+  '@koiosdigital/matrx-runtime@0.1.15':
+    resolution: {integrity: sha512-k+a4KzSClP9vDnmu4zMCFloq4UOtUTAi0w0E89Dle+T7sWQsmFIACu1jlkkwr8qoDqOug7oidAJyUpsMcWKpXQ==}
 
   '@koiosdigital/matrx-sdk@0.1.14':
     resolution: {integrity: sha512-PqCDXZ8xjUEv2KoO88jzkQGNw7MkNNxAr2pnI5a2fK8YofFs6yJWsJjTFvozZ3Bwq8Nfv/TErA5iR9aTSEYhiw==}
 
+  '@koiosdigital/matrx-sdk@0.1.15':
+    resolution: {integrity: sha512-fXD2lLfZfHba2/VTx4/V7Z2iKiv7LL8kA5fsU/JHHxSi+XlonyclncjH4ZhY+IGLnWVzLrNzKz23eRk+LF8MOA==}
+
   '@koiosdigital/matrx-stdlib@0.1.14':
     resolution: {integrity: sha512-Uwv/9V9YO4z6Xz4J8/tFI3AXLMxQBi2yy8newrwC88l3wP08TvOSJTJRIHYzHBU6NoSlaMqVz2V5ZyngIFCPrQ==}
+
+  '@koiosdigital/matrx-stdlib@0.1.15':
+    resolution: {integrity: sha512-6T7SkfmEiItlHXjtfnUDs2zRa8k9NF4UOYYJUuwE1554PnAXKXXdVprDPWdBx64VISpFRslP8W5e+zNH01z5jA==}
 
   '@napi-rs/wasm-runtime@1.1.6':
     resolution: {integrity: sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg==}
@@ -2490,9 +2501,9 @@ snapshots:
   '@koiosdigital/matrx-cli@0.1.14(ebbd2db13add003375037703439fdf28)':
     dependencies:
       '@jsquash/webp': 1.5.0
-      '@koiosdigital/matrx-dev-ui': 0.1.14(ebbd2db13add003375037703439fdf28)
-      '@koiosdigital/matrx-render': 0.1.14
-      '@koiosdigital/matrx-runtime': 0.1.14
+      '@koiosdigital/matrx-dev-ui': 0.1.15(ebbd2db13add003375037703439fdf28)
+      '@koiosdigital/matrx-render': 0.1.15
+      '@koiosdigital/matrx-runtime': 0.1.15
       '@koiosdigital/matrx-sdk': 0.1.14
       '@koiosdigital/matrx-stdlib': 0.1.14
       tsx: 4.23.1
@@ -2569,9 +2580,9 @@ snapshots:
       - yup
       - zod
 
-  '@koiosdigital/matrx-dev-ui@0.1.14(ebbd2db13add003375037703439fdf28)':
+  '@koiosdigital/matrx-dev-ui@0.1.15(ebbd2db13add003375037703439fdf28)':
     dependencies:
-      '@koiosdigital/matrx-sdk': 0.1.14
+      '@koiosdigital/matrx-sdk': 0.1.15
       '@nuxt/ui': 4.9.0(dce6c098536127e038ecb2a1ea1297c5)
       tailwindcss: 4.3.2
       vue: 3.5.39(typescript@5.9.3)
@@ -2649,26 +2660,32 @@ snapshots:
       - yup
       - zod
 
-  '@koiosdigital/matrx-render@0.1.14':
+  '@koiosdigital/matrx-render@0.1.15':
     dependencies:
       '@jsquash/webp': 1.5.0
-      '@koiosdigital/matrx-sdk': 0.1.14
+      '@koiosdigital/matrx-sdk': 0.1.15
       fflate: 0.8.3
       jpeg-js: 0.4.4
 
-  '@koiosdigital/matrx-runtime@0.1.14':
+  '@koiosdigital/matrx-runtime@0.1.15':
     dependencies:
       '@jsquash/webp': 1.5.0
-      '@koiosdigital/matrx-render': 0.1.14
-      '@koiosdigital/matrx-sdk': 0.1.14
-      '@koiosdigital/matrx-stdlib': 0.1.14
+      '@koiosdigital/matrx-render': 0.1.15
+      '@koiosdigital/matrx-sdk': 0.1.15
+      '@koiosdigital/matrx-stdlib': 0.1.15
       esbuild: 0.25.12
 
   '@koiosdigital/matrx-sdk@0.1.14': {}
 
+  '@koiosdigital/matrx-sdk@0.1.15': {}
+
   '@koiosdigital/matrx-stdlib@0.1.14':
     dependencies:
       '@koiosdigital/matrx-sdk': 0.1.14
+
+  '@koiosdigital/matrx-stdlib@0.1.15':
+    dependencies:
+      '@koiosdigital/matrx-sdk': 0.1.15
 
   '@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)':
     dependencies:

@@ -1,0 +1,12 @@
+{
+  "id": "stocks",
+  "name": "Stocks",
+  "summary": "Live quotes with a trend chart",
+  "desc": "One symbol at a time, full panel: the chart draws itself in over the last few weeks of closes, the price rolls up from the previous close, then the card slides away for the next. Search for up to six tickers; the panel shows a muted card outside market hours and keeps showing the last good quote if the feed goes quiet. 128x64 panels show the whole watchlist as a board instead of cycling.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "www.alphavantage.co"
+  ],
+  "schemaVersion": "1"
+}

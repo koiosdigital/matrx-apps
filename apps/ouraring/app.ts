@@ -1,36 +1,3 @@
-/**
- * Oura Ring — port of `ouraring/ouraring.star` (by Aiden Vigue), upgraded
- * from a pasted personal-access-token to a proper OAuth2 connection and a
- * size-aware UI redesign.
- *
- * Auth model (shared Koios OAuth client, like the netatmo original): the
- * client id ships in the schema and the client secret ships encrypted,
- * decrypted host-side via `secret.decrypt`. The oauth2 handler exchanges the
- * authorization code and persists just the refresh token as the connection
- * value.
- *
- * Oura rotates refresh tokens on every refresh-grant exchange, and the MATRX
- * config store is write-once/read-only — so the rotating chain lives in the
- * `cache` module keyed by the ORIGINAL refresh token: `refresh:<orig>` holds
- * the latest rotated refresh token and `access:<orig>` the minted access
- * token (~23h). If the chain cache is ever lost mid-rotation the user
- * reconnects; that's the best a write-once store allows.
- *
- * Metrics (multiselect-configurable): readiness, activity and sleep scores,
- * high-stress minutes (daily_stress) and average SpO2 %. Each metric shows
- * its icon + latest value (colored by its own good/warn/bad bands) and a
- * deviation bar chart of the past N days: the average is the center axis,
- * bars above/below are colored good-green/bad-red — inverted for stress,
- * where more-than-average is the bad direction. Newest day on the right.
- *
- * Layouts:
- *  - 64x32: a carousel of sliding screens (one per selected metric), each
- *    split 1/3 score panel | 2/3 bar chart.
- *  - 64x64: all selected metrics at once as stacked rows with mini charts.
- *  - 128x64: side-by-side panels with labels and tall charts (header art
- *    shrinks when >3 metrics squeeze the panels).
- */
-
 import {
   animation,
   Box,
@@ -52,7 +19,7 @@ import {
   type Schema,
   type WidgetSpec,
 } from "@koiosdigital/matrx-sdk";
-import { cache, http, secret, time } from "@koiosdigital/matrx-sdk/stdlib";
+import { cache, http, secret, time, tokens } from "@koiosdigital/matrx-sdk/stdlib";
 
 import READINESS_ICON from "./readiness.png";
 import ACTIVITY_ICON from "./activity.png";
@@ -61,7 +28,6 @@ import STRESS_ICON from "./stress.png";
 import SPO2_ICON from "./spo2.png";
 
 const CLIENT_ID = "8986c41d-5a1b-4f41-b661-557a08991fd0";
-/** Koios's Oura client secret, decrypted host-side via secret.decrypt. */
 const ENCRYPTED_CLIENT_SECRET =
   "MTX1:BNwGUdnQefv9eGAab9KIoK87Oc+BPRDgKe5JCiK/nAwbF/QN7cgTRoQ4aU9hgCwXJnu8bRSDsRTMnOqianzyfwGdMKHkssFg7tXOXwRJlJHLevFLfLZf0UeVOOW0ECFVWJDXc2Makm8FnrHvn5+IqhdayPAhkdL6vrdzF17uwXUUf3u1kNZyTQ==";
 
@@ -70,8 +36,6 @@ const API_BASE = "https://api.ouraring.com/v2/usercollection";
 
 /** Oura access tokens live 24h; refresh a little early. */
 const ACCESS_TOKEN_CACHE_SECONDS = 23 * 60 * 60;
-/** Rotated-refresh-token chain entries are kept effectively forever. */
-const REFRESH_CHAIN_CACHE_SECONDS = 180 * 24 * 60 * 60;
 /** Score data cache (original app cached 30min). */
 const DATA_TTL_SECONDS = 1800;
 
@@ -399,17 +363,41 @@ function errorView(message: string, width: number): RootSpec {
 }
 
 /**
+ * Pre-0.1.15 chain entries lived in `cache` under the same `refresh:<orig>`
+ * key, either as a JSON `{token, savedAt}` envelope or a bare token string.
+ * Read-only fallback for connections whose chain hasn't landed in `tokens`
+ * yet; the next successful exchange writes the successor there.
+ */
+async function legacyChainToken(chainKey: string): Promise<string | null> {
+  const raw = await cache.get(chainKey);
+  if (raw === null) return null;
+  try {
+    const p = JSON.parse(raw) as { token?: unknown };
+    if (typeof p.token === "string") return p.token;
+  } catch {
+    // bare-token entry
+  }
+  return raw;
+}
+
+/**
  * Exchange the stored (possibly rotated) refresh token for an access token.
+ * Oura refresh tokens are single-use, so the live end of the chain is kept
+ * in the durable `tokens` store under `refresh:<orig>`.
  * Returns null when the connection is gone and the user must reconnect.
  */
 async function getAccessToken(originalRefreshToken: string): Promise<string | null> {
-  const cached = await cache.get(`access:${originalRefreshToken}`);
+  const accessKey = `access:${originalRefreshToken}`;
+  const chainKey = `refresh:${originalRefreshToken}`;
+
+  const cached = await cache.get(accessKey);
   if (cached !== null) return cached;
 
   const clientSecret = await secret.decrypt(ENCRYPTED_CLIENT_SECRET);
   if (clientSecret === null) return null;
 
-  const latestToken = (await cache.get(`refresh:${originalRefreshToken}`)) ?? originalRefreshToken;
+  const latestToken =
+    (await tokens.get(chainKey)) ?? (await legacyChainToken(chainKey)) ?? originalRefreshToken;
 
   const exchange = (refreshToken: string) =>
     http.post(TOKEN_ENDPOINT, {
@@ -423,14 +411,21 @@ async function getAccessToken(originalRefreshToken: string): Promise<string | nu
     // Chain cache may be stale (e.g. rotation raced) — try the original.
     res = await exchange(originalRefreshToken);
   }
-  if (res.status !== 200) return null;
+  if (res.status !== 200) {
+    // A concurrent render may have spent the single-use token first; its
+    // cache write is the recovery path, not an error.
+    return cache.get(accessKey);
+  }
 
   const body = res.json() as { access_token: string; refresh_token?: string; expires_in?: number };
-  const ttl = Math.min(ACCESS_TOKEN_CACHE_SECONDS, Math.max(300, (body.expires_in ?? 86400) - 300));
-  await cache.set(`access:${originalRefreshToken}`, body.access_token, ttl);
+  // Persist the rotated refresh token BEFORE the access token: the token we
+  // just spent is already burned, so losing its successor here would orphan
+  // the chain, while the access token is merely re-mintable.
   if (body.refresh_token) {
-    await cache.set(`refresh:${originalRefreshToken}`, body.refresh_token, REFRESH_CHAIN_CACHE_SECONDS);
+    await tokens.set(chainKey, body.refresh_token);
   }
+  const ttl = Math.min(ACCESS_TOKEN_CACHE_SECONDS, Math.max(300, (body.expires_in ?? 86400) - 300));
+  await cache.set(accessKey, body.access_token, ttl);
   return body.access_token;
 }
 

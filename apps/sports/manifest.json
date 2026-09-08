@@ -1,0 +1,12 @@
+{
+  "id": "sports",
+  "name": "Sports Scores",
+  "summary": "Live scores for your league",
+  "desc": "Scores from today's slate, one game at a time: teams, scores, and whether the game is upcoming, in progress or final. Pick a league and optionally a team to follow, and the panel shows only that game. Covers MLB, NFL, NBA, NHL, WNBA, college football and basketball, MLS and the Premier League.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "site.api.espn.com"
+  ],
+  "schemaVersion": "1"
+}

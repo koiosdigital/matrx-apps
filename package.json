@@ -11,9 +11,16 @@
     "bundle": "for d in apps/*/manifest.json; do app=$(dirname \"$d\"); pnpm exec matrx bundle \"$app\" -o \"dist/$app\" || exit 1; done"
   },
   "dependencies": {
-    "@koiosdigital/matrx-sdk": "^0.1.14",
+    "@koiosdigital/matrx-sdk": "^0.1.15",
     "blueimp-md5": "^2.19.0",
     "qrcode-generator": "^2.0.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "@koiosdigital/matrx-runtime": "0.1.15",
+      "@koiosdigital/matrx-render": "0.1.15",
+      "@koiosdigital/matrx-dev-ui": "0.1.15"
+    }
   },
   "devDependencies": {
     "@koiosdigital/matrx-cli": "^0.1.14",

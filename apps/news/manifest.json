@@ -1,0 +1,18 @@
+{
+  "id": "news",
+  "name": "News",
+  "summary": "Headlines from a feed you choose",
+  "desc": "Cycles the latest headlines from a news source, one at a time, with the source and how long ago it was filed. Pick from a list of major feeds or point it at any RSS or Atom URL on an allowed host.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "feeds.npr.org",
+    "feeds.bbci.co.uk",
+    "feeds.arstechnica.com",
+    "hnrss.org",
+    "rss.nytimes.com",
+    "www.theverge.com",
+    "feeds.skynews.com"
+  ],
+  "schemaVersion": "1"
+}

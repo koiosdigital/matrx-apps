@@ -1,0 +1,19 @@
+{
+  "id": "bikeshare",
+  "name": "Bike Share",
+  "summary": "Bikes and docks free at your station",
+  "desc": "Live availability at one bike share station: bikes free, e-bikes among them, and open docks, with a bar showing how full the rack is. Reads the GBFS feed the system already publishes, so no account or key is needed. Search for your station by name.",
+  "author": "Koios Digital",
+  "entry": "app.ts",
+  "allowedHosts": [
+    "gbfs.lyft.com",
+    "gbfs.citibikenyc.com",
+    "gbfs.divvybikes.com",
+    "gbfs.baywheels.com",
+    "gbfs.bluebikes.com",
+    "gbfs.capitalbikeshare.com",
+    "gbfs.biketownpdx.com",
+    "gbfs.velobixi.com"
+  ],
+  "schemaVersion": "1"
+}

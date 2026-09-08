@@ -33,22 +33,50 @@ export interface Ctx {
   accent: string;
 }
 
+/**
+ * Type and band sizes follow the panel. A 64x32 layout simply scaled onto a
+ * 64x64 panel reads as sparse rather than generous, so tall panels step up
+ * to a 20px temperature and an 8px label face, and give the trend chart
+ * twice the height.
+ */
+interface Metrics {
+  temp: string;
+  small: string;
+  topBar: number;
+  band: number;
+  chart: number;
+}
+
+function metrics(ctx: Ctx): Metrics {
+  const tall = ctx.height >= 64;
+  // The label face follows WIDTH, not height: a 64px top bar cannot hold
+  // "NEXT 12H" plus the attribution in an 8px face without them colliding.
+  const wide = ctx.width >= 128;
+  return {
+    temp: tall ? "10x20" : "6x13",
+    small: wide ? "5x8" : "tom-thumb",
+    topBar: wide ? 9 : 7,
+    band: tall ? 22 : 13,
+    chart: tall ? 26 : 13,
+  };
+}
+
 const INK = "#FFFFFF";
 const INK2 = "#C6D2E4";
 const INK3 = "#8A99B4";
 const COOL = "#9BC4F0";
 
 /** Row of small type pinned to the top, inside the top scrim. */
-function topBar(left: string, right: string, leftColor: string, rightColor: string, a: number): WidgetSpec {
+function topBar(left: string, right: string, leftColor: string, rightColor: string, a: number, font: string): WidgetSpec {
   return Padding({
     pad: { left: 2, top: 1, right: 2, bottom: 0 },
     child: Row({
       expanded: true,
       mainAlign: "space_between",
       children: [
-        Text({ content: left, font: "tom-thumb", color: alpha(leftColor, a) }),
+        Text({ content: left, font, color: alpha(leftColor, a) }),
         right
-          ? Text({ content: right, font: "tom-thumb", color: alpha(rightColor, a) })
+          ? Text({ content: right, font, color: alpha(rightColor, a) })
           : Box({ width: 1, height: 1 }),
       ],
     }),
@@ -69,9 +97,10 @@ export function nowScreen(ctx: Ctx, a: number): WidgetSpec {
   const label = c.demo ? "DEMO" : stale ? formatAge(c.ageSeconds) : "";
   const title = ctx.locality || SCENE_LABEL[c.scene] || "NOW";
 
+  const m = metrics(ctx);
   const temp = Text({
     content: `${tempString(c.tempC, ctx.unit)}°`,
-    font: "6x13",
+    font: m.temp,
     color: alpha(INK, a),
   });
   const hilo = Column({
@@ -79,15 +108,15 @@ export function nowScreen(ctx: Ctx, a: number): WidgetSpec {
     children: [
       Row({
         children: [
-          Text({ content: "H", font: "tom-thumb", color: alpha(INK3, a) }),
-          Text({ content: tempString(c.highC, ctx.unit), font: "tom-thumb", color: alpha(INK2, a) }),
+          Text({ content: "H", font: m.small, color: alpha(INK3, a) }),
+          Text({ content: tempString(c.highC, ctx.unit), font: m.small, color: alpha(INK2, a) }),
         ],
       }),
       Box({ height: 1 }),
       Row({
         children: [
-          Text({ content: "L", font: "tom-thumb", color: alpha(INK3, a) }),
-          Text({ content: tempString(c.lowC, ctx.unit), font: "tom-thumb", color: alpha(COOL, a) }),
+          Text({ content: "L", font: m.small, color: alpha(INK3, a) }),
+          Text({ content: tempString(c.lowC, ctx.unit), font: m.small, color: alpha(COOL, a) }),
         ],
       }),
     ],
@@ -95,10 +124,10 @@ export function nowScreen(ctx: Ctx, a: number): WidgetSpec {
 
   return Column({
     children: [
-      topBar(title, label, INK2, c.demo ? ctx.accent : ctx.accent, a),
+      topBar(title, label, INK2, ctx.accent, a, m.small),
       bottom(
-        ctx.height - 7,
-        13,
+        ctx.height - m.topBar,
+        m.band,
         Padding({
           pad: { left: 2, top: 0, right: 2, bottom: 1 },
           child: Row({
@@ -115,6 +144,7 @@ export function nowScreen(ctx: Ctx, a: number): WidgetSpec {
 
 export function todayScreen(ctx: Ctx, a: number): WidgetSpec {
   const c = ctx.cond;
+  const m = metrics(ctx);
   const precip = `RAIN ${Math.round(c.precipChance * 100)}%`;
   const rise = ctx.riseLabel;
   const set = ctx.setLabel;
@@ -124,17 +154,17 @@ export function todayScreen(ctx: Ctx, a: number): WidgetSpec {
       expanded: true,
       mainAlign: "space_between",
       children: [
-        Text({ content: l, font: "tom-thumb", color: alpha(INK3, a) }),
-        Text({ content: v, font: "tom-thumb", color: alpha(vColor, a) }),
+        Text({ content: l, font: m.small, color: alpha(INK3, a) }),
+        Text({ content: v, font: m.small, color: alpha(vColor, a) }),
       ],
     });
 
   return Column({
     children: [
-      topBar("TODAY", precip, ctx.accent, COOL, a),
+      topBar("TODAY", precip, ctx.accent, COOL, a, m.small),
       bottom(
-        ctx.height - 7,
-        13,
+        ctx.height - m.topBar,
+        m.band,
         Padding({
           pad: { left: 2, top: 0, right: 2, bottom: 1 },
           child: Column({
@@ -173,12 +203,13 @@ export function next12Screen(ctx: Ctx, a: number, prog: number): WidgetSpec {
   const data: [number, number][] = [];
   for (let i = 0; i < upto; i++) data.push([i, hours[i]]);
 
-  const chartH = 13;
+  const m = metrics(ctx);
+  const chartH = m.chart;
   return Column({
     children: [
-      topBar("NEXT 12H", "APPLE", ctx.accent, INK3, a),
+      topBar("NEXT 12H", "", ctx.accent, INK3, a, m.small),
       bottom(
-        ctx.height - 7,
+        ctx.height - m.topBar,
         chartH,
         Padding({
           pad: { left: 1, top: 0, right: 1, bottom: 0 },
@@ -190,7 +221,7 @@ export function next12Screen(ctx: Ctx, a: number, prog: number): WidgetSpec {
             yLim: [lo - pad, hi + pad],
             color: alpha(ctx.accent, a),
             fill: true,
-            fillColor: alpha(ctx.accent, a * 0.34),
+            fillColor: alpha(ctx.accent, a * 0.26),
             chartType: "line",
           }),
         }),
@@ -201,16 +232,17 @@ export function next12Screen(ctx: Ctx, a: number, prog: number): WidgetSpec {
 
 /** Alert banner — replaces the NOW slot when a warning is active. */
 export function alertScreen(ctx: Ctx, a: number): WidgetSpec {
+  const m = metrics(ctx);
   const headline = ctx.cond.alert.toUpperCase().slice(0, 22);
   return Column({
     children: [
-      topBar("ALERT", "", "#FF6E7E", "#FF6E7E", a),
+      topBar("ALERT", "", "#FF6E7E", "#FF6E7E", a, m.small),
       bottom(
-        ctx.height - 7,
-        13,
+        ctx.height - m.topBar,
+        m.band,
         Padding({
           pad: { left: 2, top: 0, right: 2, bottom: 1 },
-          child: Text({ content: headline, font: "tom-thumb", color: alpha(INK, a) }),
+          child: Text({ content: headline, font: m.small, color: alpha(INK, a) }),
         }),
       ),
     ],
