@@ -34,8 +34,17 @@ const ENCRYPTED_CLIENT_SECRET =
 const TOKEN_ENDPOINT = "https://api.ouraring.com/oauth/token";
 const API_BASE = "https://api.ouraring.com/v2/usercollection";
 
-/** Oura access tokens live 24h; refresh a little early. */
-const ACCESS_TOKEN_CACHE_SECONDS = 23 * 60 * 60;
+/**
+ * Oura access tokens live 30 days. Every refresh rotates the single-use
+ * refresh token, and each rotation is a chance to lose the chain, so keep
+ * the access token for nearly its whole life (the host caps cache TTLs at
+ * 30 days) instead of rotating daily.
+ */
+const ACCESS_TOKEN_CACHE_SECONDS = 29 * 24 * 60 * 60;
+/** After a rejected refresh, don't hit the token endpoint on every render. */
+const REFRESH_REJECTED_BACKOFF_SECONDS = 15 * 60;
+/** Transient token-endpoint failures (5xx, 429) retry sooner. */
+const REFRESH_ERROR_BACKOFF_SECONDS = 60;
 /** Score data cache (original app cached 30min). */
 const DATA_TTL_SECONDS = 1800;
 
@@ -363,41 +372,24 @@ function errorView(message: string, width: number): RootSpec {
 }
 
 /**
- * Pre-0.1.15 chain entries lived in `cache` under the same `refresh:<orig>`
- * key, either as a JSON `{token, savedAt}` envelope or a bare token string.
- * Read-only fallback for connections whose chain hasn't landed in `tokens`
- * yet; the next successful exchange writes the successor there.
- */
-async function legacyChainToken(chainKey: string): Promise<string | null> {
-  const raw = await cache.get(chainKey);
-  if (raw === null) return null;
-  try {
-    const p = JSON.parse(raw) as { token?: unknown };
-    if (typeof p.token === "string") return p.token;
-  } catch {
-    // bare-token entry
-  }
-  return raw;
-}
-
-/**
- * Exchange the stored (possibly rotated) refresh token for an access token.
- * Oura refresh tokens are single-use, so the live end of the chain is kept
- * in the durable `tokens` store under `refresh:<orig>`.
- * Returns null when the connection is gone and the user must reconnect.
+ * Exchange the live end of the refresh-token chain for an access token.
+ * Oura refresh tokens are single-use: each exchange returns a successor,
+ * kept in the durable `tokens` store under `refresh:<orig>` (the config
+ * value is write-once, so the original token stays the key).
+ * Returns null when no access token is available; the render shows a
+ * reconnect prompt.
  */
 async function getAccessToken(originalRefreshToken: string): Promise<string | null> {
   const accessKey = `access:${originalRefreshToken}`;
   const chainKey = `refresh:${originalRefreshToken}`;
+  const backoffKey = `refresh-failed:${originalRefreshToken}`;
 
   const cached = await cache.get(accessKey);
-  if (cached !== null) return cached;
+  if (cached) return cached;
+  if (await cache.get(backoffKey)) return null;
 
   const clientSecret = await secret.decrypt(ENCRYPTED_CLIENT_SECRET);
   if (clientSecret === null) return null;
-
-  const latestToken =
-    (await tokens.get(chainKey)) ?? (await legacyChainToken(chainKey)) ?? originalRefreshToken;
 
   const exchange = (refreshToken: string) =>
     http.post(TOKEN_ENDPOINT, {
@@ -406,31 +398,57 @@ async function getAccessToken(originalRefreshToken: string): Promise<string | nu
       formBody: { grant_type: "refresh_token", refresh_token: refreshToken },
     });
 
+  // Only the chain's live end is worth sending: the original is spent once a
+  // successor exists, so retrying it can never succeed.
+  const latestToken = (await tokens.get(chainKey)) ?? originalRefreshToken;
   let res = await exchange(latestToken);
-  if (res.status !== 200 && latestToken !== originalRefreshToken) {
-    // Chain cache may be stale (e.g. rotation raced) — try the original.
-    res = await exchange(originalRefreshToken);
+  if (res.status !== 200) {
+    // A concurrent render may have rotated the chain since we read it.
+    const reread = await tokens.get(chainKey);
+    if (reread !== null && reread !== latestToken) res = await exchange(reread);
   }
   if (res.status !== 200) {
-    // A concurrent render may have spent the single-use token first; its
-    // cache write is the recovery path, not an error.
-    return cache.get(accessKey);
+    const rejected = res.status >= 400 && res.status < 500 && res.status !== 429;
+    await cache.set(
+      backoffKey,
+      String(res.status),
+      rejected ? REFRESH_REJECTED_BACKOFF_SECONDS : REFRESH_ERROR_BACKOFF_SECONDS,
+    );
+    // A concurrent render's successful exchange may have cached one.
+    return (await cache.get(accessKey)) || null;
   }
 
   const body = res.json() as { access_token: string; refresh_token?: string; expires_in?: number };
-  // Persist the rotated refresh token BEFORE the access token: the token we
-  // just spent is already burned, so losing its successor here would orphan
-  // the chain, while the access token is merely re-mintable.
+  // Persist the successor BEFORE the access token: the token we just spent
+  // is burned, so losing its successor would orphan the chain, while the
+  // access token is merely re-mintable.
   if (body.refresh_token) {
     await tokens.set(chainKey, body.refresh_token);
   }
-  const ttl = Math.min(ACCESS_TOKEN_CACHE_SECONDS, Math.max(300, (body.expires_in ?? 86400) - 300));
+  const ttl = Math.min(
+    ACCESS_TOKEN_CACHE_SECONDS,
+    Math.max(300, (body.expires_in ?? 86400) - 24 * 60 * 60),
+  );
   await cache.set(accessKey, body.access_token, ttl);
   return body.access_token;
 }
 
-/** Fetch one metric's per-day series. Null = API error; [] = no data. */
-async function fetchSeries(accessToken: string, def: MetricDef, days: number): Promise<number[] | null> {
+/** Drop a cached access token Oura has rejected, so the next call refreshes. */
+async function forgetAccessToken(originalRefreshToken: string): Promise<void> {
+  // The cache module can't delete; an empty value with the minimum TTL reads
+  // as a miss in getAccessToken.
+  await cache.set(`access:${originalRefreshToken}`, "", 1);
+}
+
+/**
+ * Fetch one metric's per-day series. Null = API error; [] = no data;
+ * "unauthorized" = Oura rejected the access token.
+ */
+async function fetchSeries(
+  accessToken: string,
+  def: MetricDef,
+  days: number,
+): Promise<number[] | "unauthorized" | null> {
   const now = time.now();
   const fromDate = now.add(time.parseDuration(`-${days * 24}h`)).format("2006-01-02");
   const toDate = now.format("2006-01-02");
@@ -440,6 +458,7 @@ async function fetchSeries(accessToken: string, def: MetricDef, days: number): P
     headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
     ttlSeconds: DATA_TTL_SECONDS,
   });
+  if (res.status === 401) return "unauthorized";
   if (res.status !== 200) return null;
 
   const body = res.json() as { data?: DailyEntry[] };
@@ -457,13 +476,23 @@ export default async function render(config: Config): Promise<RootSpec> {
   let metrics: Metric[];
   const auth = config.get("auth");
   if (auth) {
-    const accessToken = await getAccessToken(auth);
+    let accessToken = await getAccessToken(auth);
     if (accessToken === null) {
       return errorView("Oura auth expired - please reconnect", width);
     }
 
-    const series = await Promise.all(defs.map((def) => fetchSeries(accessToken, def, days)));
-    if (series.some((s) => s === null)) {
+    let series = await Promise.all(defs.map((def) => fetchSeries(accessToken!, def, days)));
+    if (series.some((s) => s === "unauthorized")) {
+      // Revoked or expired early: the cached token is good for weeks, so mint
+      // a fresh one now rather than erroring until its TTL runs out.
+      await forgetAccessToken(auth);
+      accessToken = await getAccessToken(auth);
+      if (accessToken === null) {
+        return errorView("Oura auth expired - please reconnect", width);
+      }
+      series = await Promise.all(defs.map((def) => fetchSeries(accessToken!, def, days)));
+    }
+    if (series.some((s) => s === null || s === "unauthorized")) {
       return errorView("API error", width);
     }
     // Drop selected metrics the account has no data for (e.g. SpO2 sensing off).
